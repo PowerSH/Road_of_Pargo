@@ -2,6 +2,8 @@
 
 2D auto-chess + Slay-the-Spire-style 로그라이트. Godot 4.3 + GDScript.
 
+> **새 세션/다른 PC에서 시작한다면**: 먼저 [`docs/NEXT-SESSION.md`](docs/NEXT-SESSION.md)부터 읽기.
+
 ## 컨셉
 
 - **편성 단계**: 5×3 그리드 위에 유닛을 배치. 그리드 위치는 **시너지 계산용**이다(8방향 인접). 예: 양 옆의 유닛이 "전사" 타입이면 해당 유닛 공격력 +10%.
