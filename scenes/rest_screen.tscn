@@ -1,0 +1,55 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/rest_screen.gd" id="1_rest"]
+
+[node name="RestScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_rest")
+
+[node name="CenterWrap" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Stack" type="VBoxContainer" parent="CenterWrap"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="CenterWrap/Stack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "휴식"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="CenterWrap/Stack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "모닥불 옆에서 한숨 돌린다."
+horizontal_alignment = 1
+
+[node name="HealButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(240, 48)
+layout_mode = 2
+text = "HP 회복 (+30)"
+
+[node name="UpgradeButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(240, 48)
+layout_mode = 2
+text = "카드 강화 (미구현)"
+
+[node name="LeaveButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(240, 48)
+layout_mode = 2
+text = "떠나기"
+
+[connection signal="pressed" from="CenterWrap/Stack/HealButton" to="." method="_on_heal_pressed"]
+[connection signal="pressed" from="CenterWrap/Stack/UpgradeButton" to="." method="_on_upgrade_pressed"]
+[connection signal="pressed" from="CenterWrap/Stack/LeaveButton" to="." method="_on_leave_pressed"]

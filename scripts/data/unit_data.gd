@@ -38,7 +38,9 @@ func get_nation() -> StringName:
 	return _single_from_axis(SynergyTypes.ALL_NATIONS)
 
 
-func get_class() -> StringName:
+## Returns the unit's class tag (보병/창병/궁병/석궁병), or &"" if none/multiple set.
+## Named *_tag to avoid clashing with Object.get_class() (which returns the script type).
+func get_class_tag() -> StringName:
 	return _single_from_axis(SynergyTypes.ALL_CLASSES)
 
 
@@ -62,7 +64,7 @@ func validate_axes() -> Array[String]:
 	var problems: Array[String] = []
 	if get_nation() == &"":
 		problems.append("nation tag missing or duplicated")
-	if get_class() == &"":
+	if get_class_tag() == &"":
 		problems.append("class tag missing or duplicated")
 	if get_type_tag() == &"":
 		problems.append("type tag missing or duplicated")

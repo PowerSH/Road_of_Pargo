@@ -27,7 +27,7 @@ static func generate(rng: RandomNumberGenerator, depth: int = 12, lanes: int = 4
 			var here: MapNode = nodes[here_idx]
 			var edges: int = rng.randi_range(1, 2)
 			var candidates: Array[int] = []
-			for offset in [-1, 0, 1]:
+			for offset: int in [-1, 0, 1]:
 				var nl: int = l + offset
 				if nl >= 0 and nl < lanes:
 					candidates.append(nl)

@@ -57,8 +57,8 @@ func swap(a_row: int, a_col: int, b_row: int, b_col: int) -> void:
 
 func get_adjacent(row: int, col: int) -> Array[UnitData]:
 	var out: Array[UnitData] = []
-	for dr in [-1, 0, 1]:
-		for dc in [-1, 0, 1]:
+	for dr: int in [-1, 0, 1]:
+		for dc: int in [-1, 0, 1]:
 			if dr == 0 and dc == 0:
 				continue
 			var nr := row + dr

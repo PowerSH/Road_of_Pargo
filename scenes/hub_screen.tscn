@@ -1,0 +1,67 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/hub_screen.gd" id="1_hub"]
+
+[node name="HubScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_hub")
+
+[node name="CenterWrap" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Stack" type="VBoxContainer" parent="CenterWrap"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="CenterWrap/Stack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "거점"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="CenterWrap/Stack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "마을 광장"
+horizontal_alignment = 1
+
+[node name="HireButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(240, 48)
+layout_mode = 2
+text = "용병 고용"
+
+[node name="ShopButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(240, 48)
+layout_mode = 2
+text = "아이템 상점"
+
+[node name="NpcButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(240, 48)
+layout_mode = 2
+text = "NPC 조우"
+
+[node name="ToMapButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(240, 48)
+layout_mode = 2
+text = "맵으로 출발"
+
+[node name="ToMenuButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(240, 36)
+layout_mode = 2
+text = "메뉴로 (디버그)"
+
+[connection signal="pressed" from="CenterWrap/Stack/HireButton" to="." method="_on_hire_pressed"]
+[connection signal="pressed" from="CenterWrap/Stack/ShopButton" to="." method="_on_shop_pressed"]
+[connection signal="pressed" from="CenterWrap/Stack/NpcButton" to="." method="_on_npc_pressed"]
+[connection signal="pressed" from="CenterWrap/Stack/ToMapButton" to="." method="_on_to_map_pressed"]
+[connection signal="pressed" from="CenterWrap/Stack/ToMenuButton" to="." method="_on_to_menu_pressed"]

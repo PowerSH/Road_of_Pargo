@@ -22,6 +22,7 @@ func _ready() -> void:
 func start_new_run() -> void:
 	run = RunState.new()
 	run.nodes = MapGenerator.generate(rng)
+	run.reveal_initial()
 	board = BoardState.new()
 	run_started.emit()
 

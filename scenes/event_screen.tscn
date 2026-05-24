@@ -1,0 +1,55 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/event_screen.gd" id="1_event"]
+
+[node name="EventScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_event")
+
+[node name="CenterWrap" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Stack" type="VBoxContainer" parent="CenterWrap"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="CenterWrap/Stack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "특수 이벤트"
+horizontal_alignment = 1
+
+[node name="Body" type="Label" parent="CenterWrap/Stack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "(이벤트 텍스트 자리 — placeholder)"
+horizontal_alignment = 1
+
+[node name="ChoiceAButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(280, 48)
+layout_mode = 2
+text = "선택지 A (미구현)"
+
+[node name="ChoiceBButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(280, 48)
+layout_mode = 2
+text = "선택지 B (미구현)"
+
+[node name="LeaveButton" type="Button" parent="CenterWrap/Stack"]
+custom_minimum_size = Vector2(280, 48)
+layout_mode = 2
+text = "지나치기"
+
+[connection signal="pressed" from="CenterWrap/Stack/ChoiceAButton" to="." method="_on_choice_a_pressed"]
+[connection signal="pressed" from="CenterWrap/Stack/ChoiceBButton" to="." method="_on_choice_b_pressed"]
+[connection signal="pressed" from="CenterWrap/Stack/LeaveButton" to="." method="_on_leave_pressed"]

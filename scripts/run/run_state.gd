@@ -24,6 +24,10 @@ var active_rules: Array[SynergyRule] = []
 var nodes: Array[MapNode] = []
 ## Index into `nodes` of the player's current position. -1 == not entered yet.
 var current_node_index: int = -1
+## Indices of nodes whose kind has been revealed to the player.
+## Default Fog of War (progression.md §3, option A): revealed on arrival.
+## Boss node is always revealed (목적지로 기능).
+var revealed_nodes: Array[int] = []
 
 
 func add_unit(u: UnitData) -> void:
@@ -70,4 +74,17 @@ func enter_node(index: int) -> bool:
 	if not reachable_from_current().has(index):
 		return false
 	current_node_index = index
+	if not revealed_nodes.has(index):
+		revealed_nodes.append(index)
 	return true
+
+
+func is_revealed(index: int) -> bool:
+	return revealed_nodes.has(index)
+
+
+## Called after `nodes` is populated. Reveals the boss as a known destination.
+func reveal_initial() -> void:
+	for i in nodes.size():
+		if nodes[i].kind == MapNode.Kind.BOSS and not revealed_nodes.has(i):
+			revealed_nodes.append(i)

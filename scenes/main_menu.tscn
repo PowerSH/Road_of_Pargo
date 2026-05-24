@@ -1,0 +1,50 @@
+[gd_scene format=3 uid="uid://bjgo21cd43022"]
+
+[ext_resource type="Script" uid="uid://csc6v8l2eqmp5" path="res://scripts/ui/main_menu.gd" id="1_l6cm7"]
+
+[node name="MainMenu" type="Control" unique_id=969126565]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_l6cm7")
+
+[node name="CenterWrap" type="CenterContainer" parent="." unique_id=1078061570]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Stack" type="VBoxContainer" parent="CenterWrap" unique_id=1732642078]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="CenterWrap/Stack" unique_id=63349218]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "Road of Pargo"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="CenterWrap/Stack" unique_id=2033843032]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Legend of Merchant"
+horizontal_alignment = 1
+
+[node name="StartButton" type="Button" parent="CenterWrap/Stack" unique_id=1869976966]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 2
+text = "Start"
+
+[node name="QuitButton" type="Button" parent="CenterWrap/Stack" unique_id=1674419860]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 50)
+layout_mode = 2
+text = "Exit"
+
+[connection signal="pressed" from="CenterWrap/Stack/StartButton" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="CenterWrap/Stack/QuitButton" to="." method="_on_quit_pressed"]
