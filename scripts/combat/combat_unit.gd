@@ -18,11 +18,20 @@ var state: State = State.SEARCH
 var target: CombatUnit = null
 var _attack_cooldown: float = 0.0
 
+## Player 측에만 의미 있는 OwnedUnit 역참조. carry-over HP 시작값 + 전투 종료 시
+## write-back에 사용. enemy 측은 null.
+var owned: OwnedUnit = null
 
-func setup(stats_in: ComputedStats, team_in: Team, spawn_pos: Vector2) -> void:
+
+func setup(stats_in: ComputedStats, team_in: Team, spawn_pos: Vector2, source_owned: OwnedUnit = null) -> void:
 	stats = stats_in
 	team = team_in
-	current_hp = stats.max_hp
+	owned = source_owned
+	# Player 측은 OwnedUnit의 carry-over HP에서 시작. enemy 측은 풀 HP.
+	if owned != null:
+		current_hp = owned.get_starting_hp(stats.max_hp)
+	else:
+		current_hp = stats.max_hp
 	state = State.SEARCH
 	position = spawn_pos
 

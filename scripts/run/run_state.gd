@@ -13,12 +13,16 @@ var health: int = STARTING_HEALTH
 var max_health: int = STARTING_HEALTH
 var gold: int = STARTING_GOLD
 
-## Units the player owns (the "deck"). Subset of these get placed on the board
-## each battle.
-var owned_units: Array[UnitData] = []
+## Units the player owns (the "deck"). 같은 UnitData를 두 번 영입하면 OwnedUnit이 2개.
+## 배치된 일부 + 보관함의 나머지로 분류되며 battle-flow.md §2 참조.
+var owned_units: Array[OwnedUnit] = []
 
 ## Synergy rules currently in effect. Events / relics can mutate this mid-run.
 var active_rules: Array[SynergyRule] = []
+
+## Current chapter (1=마을 / 2=도시 / 3=국가). progression.md §1 참조.
+## 부상 카운트다운 초기값과 적군 power target 계산에 사용.
+var chapter: int = 1
 
 ## The current run's node map.
 var nodes: Array[MapNode] = []
@@ -30,12 +34,38 @@ var current_node_index: int = -1
 var revealed_nodes: Array[int] = []
 
 
-func add_unit(u: UnitData) -> void:
-	owned_units.append(u)
+## 새 OwnedUnit을 만들어 영입. 같은 UnitData를 또 영입하면 OwnedUnit 인스턴스 별개로 생성.
+func add_unit_data(data: UnitData) -> OwnedUnit:
+	var owned := OwnedUnit.new()
+	owned.source = data
+	owned.acquired_chapter = chapter
+	owned.acquired_stage = max(current_node_index, 0)
+	owned_units.append(owned)
+	return owned
 
 
-func remove_unit(u: UnitData) -> void:
-	owned_units.erase(u)
+## 이미 만들어진 OwnedUnit을 추가 (예: 특수 이벤트로 NPC 합류).
+func add_owned_unit(owned: OwnedUnit) -> void:
+	owned_units.append(owned)
+
+
+func remove_unit(owned: OwnedUnit) -> void:
+	owned_units.erase(owned)
+
+
+## 부상→사망 카운트다운 초기값. cargo-and-mortality.md §5.
+func injury_threshold() -> int:
+	match chapter:
+		1: return 4
+		2: return 3
+		3: return 2
+		_: return 4
+
+
+## 매 스테이지 진입 후 호출 — 부상 유닛의 카운트다운 진행.
+func tick_injury_countdowns() -> void:
+	for u in owned_units:
+		u.tick_injury_countdown()
 
 
 func spend_gold(amount: int) -> bool:

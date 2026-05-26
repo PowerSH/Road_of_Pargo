@@ -49,15 +49,23 @@ func compute_current_synergies() -> Dictionary:
 	return SynergyEngine.compute(board, run.active_rules)
 
 
-## Helper to push a battle: builds the player ComputedStats array from the
-## current board + synergies, then hands it to a caller-provided CombatManager.
-func build_player_stats() -> Array[ComputedStats]:
+## Helper to push a battle: builds parallel arrays of ComputedStats + OwnedUnit
+## for CombatManager.start_battle. Index i in both arrays refers to the same
+## placed unit on the board.
+##
+## Returns {"stats": Array[ComputedStats], "owned": Array[OwnedUnit]}.
+func build_player_payload() -> Dictionary:
 	var stats: Array[ComputedStats] = []
+	var owned_list: Array[OwnedUnit] = []
 	if board == null:
-		return stats
+		return {"stats": stats, "owned": owned_list}
 	var computed: Dictionary = compute_current_synergies()
 	for entry in board.iter_placed():
+		var owned: OwnedUnit = entry.unit
+		if owned == null:
+			continue
 		var key := Vector2i(entry.col, entry.row)
 		if computed.has(key):
 			stats.append(computed[key])
-	return stats
+			owned_list.append(owned)
+	return {"stats": stats, "owned": owned_list}

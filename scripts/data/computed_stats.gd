@@ -2,9 +2,11 @@ class_name ComputedStats
 extends Resource
 
 ## Final stats after synergy bonuses are applied. Produced by SynergyEngine
-## and consumed by CombatUnit when battle starts.
+## (player) or EnemySynergyEngine (enemy) and consumed by CombatUnit when battle starts.
 
-@export var source: UnitData
+## UnitData (player) 또는 EnemyUnitData (enemy). UI 툴팁/디버그용 — 시뮬레이션에는 안 쓰임.
+@export var source: Resource
+
 @export var max_hp: float
 @export var attack: float
 @export var attack_speed: float
@@ -17,6 +19,17 @@ extends Resource
 
 
 static func from_base(unit: UnitData) -> ComputedStats:
+	var s := ComputedStats.new()
+	s.source = unit
+	s.max_hp = unit.max_hp
+	s.attack = unit.attack
+	s.attack_speed = unit.attack_speed
+	s.attack_range = unit.attack_range
+	s.move_speed = unit.move_speed
+	return s
+
+
+static func from_enemy(unit: EnemyUnitData) -> ComputedStats:
 	var s := ComputedStats.new()
 	s.source = unit
 	s.max_hp = unit.max_hp
