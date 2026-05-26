@@ -6,15 +6,18 @@
 
 1. **이 파일** (`docs/NEXT-SESSION.md`) — 현재 위치, 다음 할 일
 2. **README.md** — 게임 컨셉, 코드 구조, 합의된 설계 결정
-3. **docs/design/** — 설계 문서 (현 시점 3개)
+3. **docs/design/** — 설계 문서 (현 시점 5개)
    - `synergy-axes.md` — 시너지 축 3개 + 친화 매트릭스 + 발동 해석
    - `progression.md` — 챕터/스테이지/이벤트 구조 + 난이도 곡선 + Fog of War
-   - `cargo-and-mortality.md` — 적재 그리드 + 유닛 사망 시스템
+   - `cargo-and-mortality.md` — 적재 그리드 + 유닛 사망 + HP carry over
+   - `encounters.md` — 적 시스템 (EnemyUnitData, 5개 시너지 패턴, EncounterTemplate, mock 데이터)
+   - `battle-flow.md` — 전투 흐름 통합 (라운드 1-6 종합, 상태머신, UI 룰, 데이터 인터페이스)
 4. **docs/session-reports/** — 토픽 단위 마일스톤 로그
    - `2026-05-14-initial-scaffold.md` — 1회차: 코어 시스템 코드 골격
    - `2026-05-14-synergy-axes.md` — 2회차: 시너지 축 정의
    - `2026-05-15-progression-and-cargo.md` — 3회차: 진행 구조 + 적재/사망 디자인
    - `2026-05-25-godot-4-6-and-ui-skeleton.md` — 4회차: Godot 4.6 마이그레이션 + UI 씬 골격 11개
+   - (5회차는 daily-reports/2026-05-26.md로 누적 — 배틀 시스템 기획 6 라운드 + 적 시스템 코드 + battle-flow 통합)
 5. **docs/daily-reports/** — 날짜 단위 타임라인 로그 (그날 무엇을 했나)
    - `YYYY-MM-DD.md` 형식. 운영 규칙은 §6 참조.
 
@@ -23,7 +26,7 @@
 - 보드/시너지 엔진: `scripts/board/`
 - 자동 전투: `scripts/combat/`
 - 로그라이트 진행: `scripts/run/`
-- 오토로드: `scripts/globals/game_state.gd`
+- 오토로드: `scripts/globals/game_state.gd`, `scripts/globals/settings.gd`
 - **UI 스크립트**: `scripts/ui/` (씬당 .gd 1개)
 - **씬 파일**: `scenes/` (총 11개 placeholder)
 
@@ -39,11 +42,14 @@
 - 오토로드 `GameState`
 - 시너지 축 3개 + 친화 매트릭스 코드화 (`scripts/data/synergy_types.gd`)
 - `UnitData.validate_axes()` 등 축별 헬퍼
-- **디자인 문서 3종** (`docs/design/`)
+- **디자인 문서 5종** (`docs/design/`)
 - **UI 씬 골격 11개** (`scenes/*.tscn`) + 외부 스크립트 11개 (`scripts/ui/*.gd`)
 - **메인 메뉴** + **맵 화면 완전 구현** — StS DAG 격자 배치, 엣지 라인, kind별 라벨, Fog of War, HP/Gold 정보, 노드 종류별 라우팅
 - Fog of War 데이터: `RunState.revealed_nodes` + `is_revealed()` + `reveal_initial()` (boss는 항상 공개)
 - Godot 4.6 호환성 fix — `get_class` 충돌, 타입 추론 명시, 빌트인 메서드 충돌 회피
+- **적 시스템 데이터 모델** (`EnemyUnitData`, `EnemySynergyRule`, `EncounterSlot`, `EncounterTemplate`)
+- **배틀 시스템 데이터 모델** (`OwnedUnit`, `BattleResult`, `ItemEffect`, `Settings` autoload)
+- **일일 보고서 워크플로** (`docs/daily-reports/`) + 운영 규칙 §6
 
 ### ⏸ 대기 중
 
@@ -63,25 +69,27 @@
 
 **B. 적재/사망 시스템 코드 구현 (디자인 확정됨, 구현 대기)**
 
-구현 우선순위 (`cargo-and-mortality.md` §7 참조):
-1. `OwnedUnit` 클래스 + `RunState.owned_units` 타입 마이그레이션
-2. 전투 종료 시 부상 처리 (HP 0 PLAYER 측 → `INJURED`)
-3. `CargoState` 기본 모델 (회전 X 단순판)
-4. `CargoItem` + 판매가
-5. 회전 + 자동정렬 (UI 편의 기능)
-6. `ItemEffect` 인터페이스 — `stat_boost`부터
-7. 도시 액션 (부활/치료/구매/그리드 확장)
+데이터 모델 1차 작성 완료 (`OwnedUnit`, `BattleResult`, `ItemEffect`, `Settings`).
+남은 구현 우선순위:
+1. `RunState.owned_units` 타입 마이그레이션 (`Array[UnitData]` → `Array[OwnedUnit]`)
+2. `BoardState` 셀 타입을 `OwnedUnit` 참조로 마이그레이션
+3. `CombatUnit.setup()`이 `OwnedUnit.get_starting_hp()`로 시작 HP 결정
+4. 전투 종료 시 OwnedUnit current_hp/status 기록 (CombatManager 변경)
+5. `CargoState` + `CargoItem` 기본 모델 (회전 X 단순판)
+6. 도시 액션 (부활/치료/구매/그리드 확장)
+7. `EncounterGenerator` + `EnemySynergyEngine` (pre-battle 평가)
 
 **C. 씬 내부 실제 구현 (UI 골격 완성됨, 내부 채우기)**
 
 우선순위:
-1. **`battle_screen`** — 5×3 편성 단계 + 자동 전투(`CombatManager` 연동). 게임 코어가 처음 움직이는 시점.
+1. **`battle_screen`** — 4 페이즈 상태머신(PREP/ITEM_APPLY/BATTLE/RESULT). 설계는 `battle-flow.md` 완료. 데이터 인터페이스 준비됨 (`OwnedUnit`, `BattleResult`, `ItemEffect`, `Settings`).
 2. **챕터 진행 로직** — `RunState.chapter`, 보스 승리 → 맵 재생성. 작업량 작고 게임 흐름 완결.
-3. `hub_screen` 내부 — 용병/상점/NPC sub-popup. 콘텐츠 없어도 골격 가능.
-4. `shop_screen` / `event_screen` / `treasure_screen` 시스템 (콘텐츠는 후순위).
-5. `rest_screen` / `elite_screen` 차별화 (현재는 placeholder 버튼만).
+3. **쉼터(여관) 액션** — HP 풀 회복 + 부상 → 전투가능. `rest_screen` 내부.
+4. `hub_screen` 내부 — 용병/상점/NPC sub-popup. 거래 화면(판매/구매/부활/그리드 확장).
+5. `shop_screen` / `event_screen` / `treasure_screen` 시스템 (콘텐츠는 후순위).
+6. `elite_screen` 차별화 (현재는 placeholder 버튼만).
 
-**C-1 (battle_screen)이 임팩트 가장 큼.** 백엔드 코드(`SynergyEngine`, `CombatManager`)는 이미 준비됨.
+**C-1 (battle_screen)이 임팩트 가장 큼.** 백엔드 코드(`SynergyEngine`, `CombatManager`)는 이미 준비됨. 데이터 모델도 5/26 완료.
 
 ### 🚫 의도적으로 비워둔 것
 - UI 시각 디자인 (현재 placeholder = CenterContainer + VBox + 기본 Button)
@@ -119,7 +127,19 @@
 | 적재 시스템 | Backpack Hero식 격자, 회전 OK, 자동정렬 OK, 시너지 격자와 별개 |
 | 아이템 사용 | **전투 시작 전 미리 사용**만 (전투 중 발동 X) |
 | 유닛 상태 | 전투가능 / 부상 / 사망 — 회복 후 영구 페널티 없음 |
-| 시체 적재 | 1×2 셀 점유, 도시 부활 가능, 버리기 = 단순 공간 회수 |
+| 시체 적재 | 1×2 셀 점유, 도시 부활 가능, 버리기 = **쉼터 한정** |
+| 유닛 HP | **Carry Over** — 전투 사이 영구 자원. 쉼터(여관)에서 풀 회복 |
+| 부상 룰 | 전투 중 HP 0 → INJURED, 미치료 N 스테이지 → DEAD (C1=4/C2=3/C3=2) |
+| 패배 시 | **게임 오버** — 런 즉시 종료 |
+| 무승부 | 캡 120초, 발생 시 양쪽 부상 + 보상 절반 |
+| 골드 보상 | `round(total_enemy_power × 0.25)`, 보스 ×2 |
+| 편성 화면 | 5×3 적·플레이어 마주보기 (한 화면), 보드는 영구 상태, 보관함 사이드 패널 |
+| 보관함 ⇄ 아이템 | 사이드 패널 토글 (한 공간 공유). 상태는 아이콘 뱃지 ✓⚠☠ |
+| 같은 유닛 두 번 | 같은 종류 OwnedUnit 두 인스턴스 영입 시 두 칸 배치 가능 |
+| 아이템 사용 | 전투 시작 직전 일괄 적용, 슬롯 3개, 같은 effect_type은 max만, 적 시너지 비표시 |
+| 적 시스템 | EnemyUnitData 별도, 5개 적 시너지 패턴, EncounterTemplate 카탈로그 + variation |
+| 전투 페이즈 | 별도 화면 페이즈, 1×/2× 배속, 일시정지 OK, 도주 X, 결과 슬로우모션 |
+| HP바·데미지숫자 | Settings autoload 옵션 (ALWAYS/ON_HOVER, ALL/NONE) |
 | 씬 흐름 | Menu → Story → Hub → Map → [Battle/Elite/Rest/Shop/Event/Treasure/Boss] → Map. 보스 승리 → Hub |
 | 노드 종류별 씬 | 7종 모두 각각 별도 .tscn (BATTLE/ELITE/REST/SHOP/EVENT/TREASURE/BOSS) |
 | 거점(Hub) 역할 | 챕터 시작 + 챕터 사이 통과 도시 (둘 다 같은 씬) |
