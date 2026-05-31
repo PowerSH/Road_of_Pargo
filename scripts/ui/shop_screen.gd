@@ -3,6 +3,10 @@ extends Control
 ## 상점 노드. 골드로 아이템/유닛 구매. 도중 노드에 한정 (챕터 사이 거점 상점과 별개).
 
 
+func _ready() -> void:
+	ScreenHelpers.add_background(self, "res://resource/bg_img/bg_mercenary.jpg")
+
+
 func _on_buy_item_pressed() -> void:
 	print("[Shop] 아이템 구매 — 미구현")
 

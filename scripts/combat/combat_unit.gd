@@ -10,6 +10,12 @@ enum State { SEARCH, MOVE, ATTACK, DEAD }
 signal died(unit: CombatUnit)
 signal damaged(unit: CombatUnit, amount: float)
 
+## 동맹 분리 — 같은 팀 유닛끼리 너무 가까우면 밀어냄 (visual + 게임플레이 둘 다).
+const SEPARATION_RADIUS: float = 50.0
+const SEPARATION_STRENGTH: float = 80.0
+## 공격 거리의 이 비율까지만 접근 — 적과 겹치지 않게.
+const APPROACH_RATIO: float = 0.9
+
 @export var team: Team = Team.PLAYER
 
 var stats: ComputedStats
@@ -49,7 +55,7 @@ func take_damage(amount: float) -> void:
 		_die()
 
 
-func tick(delta: float, enemies: Array[CombatUnit]) -> void:
+func tick(delta: float, enemies: Array[CombatUnit], allies: Array[CombatUnit] = []) -> void:
 	if not is_alive():
 		return
 	if _attack_cooldown > 0.0:
@@ -72,10 +78,31 @@ func tick(delta: float, enemies: Array[CombatUnit]) -> void:
 	else:
 		state = State.MOVE
 		var step: float = stats.move_speed * delta
-		if step >= dist:
-			position = target.position
-		else:
-			position += to_target / dist * step
+		# attack_range 안쪽까지만 — target과 겹치지 않게 약간 여유 둠
+		var stop_dist: float = stats.attack_range * APPROACH_RATIO
+		var travel: float = max(dist - stop_dist, 0.0)
+		var actual_step: float = min(step, travel)
+		if dist > 0.0:
+			position += to_target / dist * actual_step
+
+	# 동맹 분리 — 같은 팀끼리 SEPARATION_RADIUS 안에 들어오면 서로 밀어냄.
+	# MOVE/ATTACK 둘 다 적용 (같은 적을 공격하는 여러 동맹이 한 점에 안 모이도록).
+	_apply_separation(allies, delta)
+
+
+func _apply_separation(allies: Array[CombatUnit], delta: float) -> void:
+	if allies.is_empty():
+		return
+	var push: Vector2 = Vector2.ZERO
+	for ally in allies:
+		if ally == self or not ally.is_alive():
+			continue
+		var diff: Vector2 = position - ally.position
+		var d: float = diff.length()
+		if d > 0.001 and d < SEPARATION_RADIUS:
+			push += diff / d * (SEPARATION_RADIUS - d) / SEPARATION_RADIUS
+	if push.length_squared() > 0.0:
+		position += push * SEPARATION_STRENGTH * delta
 
 
 func _find_nearest(enemies: Array[CombatUnit]) -> CombatUnit:

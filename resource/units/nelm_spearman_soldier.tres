@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://bu6bc1s06t1ly" path="res://scripts/data/unit_data.gd" id="1_unit"]
+
+[resource]
+script = ExtResource("1_unit")
+id = &"nelm_spearman_soldier"
+display_name = "넬름 군인 창병"
+max_hp = 200.0
+attack = 14.0
+attack_speed = 0.9
+attack_range = 120.0
+move_speed = 105.0
+types = Array[StringName]([&"nation_nelm", &"class_spearman", &"type_soldier"])
+cost = 2
+tier = 2

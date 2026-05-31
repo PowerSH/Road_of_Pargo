@@ -4,6 +4,10 @@ extends Control
 ## 챕터 시작 위치 + 챕터 사이 통과 도시 역할 둘 다.
 
 
+func _ready() -> void:
+	ScreenHelpers.add_background(self, "res://resource/bg_img/bg_city.jpg")
+
+
 func _on_hire_pressed() -> void:
 	print("[Hub] 용병 고용 — 미구현")
 

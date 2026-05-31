@@ -30,3 +30,10 @@ export/
 # Godot 에디터가 저장 중 만드는 임시 파일
 *.tscn[0-9]*.tmp
 *.gd[0-9]*.tmp
+
+# MS Office (Excel/Word) 락 파일
+~$*
+
+# Python
+__pycache__/
+*.pyc

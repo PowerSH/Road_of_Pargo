@@ -4,6 +4,10 @@ extends Control
 ## 현재는 placeholder.
 
 
+func _ready() -> void:
+	ScreenHelpers.add_background(self, "res://resource/bg_img/bg_canyon.jpg")
+
+
 func _on_victory_pressed() -> void:
 	print("[Elite] 승리 — 맵으로 복귀")
 	get_tree().change_scene_to_file("res://scenes/map_screen.tscn")

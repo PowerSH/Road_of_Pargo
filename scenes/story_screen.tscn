@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://fv6bu8hotnsk"]
 
-[ext_resource type="Script" path="res://scripts/ui/story_screen.gd" id="1_story"]
+[ext_resource type="Script" uid="uid://uveqc0484l8u" path="res://scripts/ui/story_screen.gd" id="1_story"]
 
-[node name="StoryScreen" type="Control"]
+[node name="StoryScreen" type="Control" unique_id=39894870]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_story")
 
-[node name="CenterWrap" type="CenterContainer" parent="."]
+[node name="CenterWrap" type="CenterContainer" parent="." unique_id=490422453]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -19,17 +19,17 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Stack" type="VBoxContainer" parent="CenterWrap"]
+[node name="Stack" type="VBoxContainer" parent="CenterWrap" unique_id=7169919]
 layout_mode = 2
 theme_override_constants/separation = 24
 
-[node name="Title" type="Label" parent="CenterWrap/Stack"]
+[node name="Title" type="Label" parent="CenterWrap/Stack" unique_id=1789205071]
 layout_mode = 2
 theme_override_font_sizes/font_size = 48
 text = "프롤로그"
 horizontal_alignment = 1
 
-[node name="Body" type="Label" parent="CenterWrap/Stack"]
+[node name="Body" type="Label" parent="CenterWrap/Stack" unique_id=2005762559]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "당신은 작은 상단(商團)을 이끌고
@@ -37,7 +37,7 @@ text = "당신은 작은 상단(商團)을 이끌고
 긴 여정이 시작된다."
 horizontal_alignment = 1
 
-[node name="ContinueButton" type="Button" parent="CenterWrap/Stack"]
+[node name="ContinueButton" type="Button" parent="CenterWrap/Stack" unique_id=1561564260]
 custom_minimum_size = Vector2(220, 50)
 layout_mode = 2
 text = "계속"

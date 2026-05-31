@@ -6,6 +6,10 @@ extends Control
 const HEAL_AMOUNT: int = 30
 
 
+func _ready() -> void:
+	ScreenHelpers.add_background(self, "res://resource/bg_img/bg_forest.jpg")
+
+
 func _on_heal_pressed() -> void:
 	if GameState.run == null:
 		return

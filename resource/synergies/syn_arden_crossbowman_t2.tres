@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="SynergyRule" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://dh14thnp7fdr8" path="res://scripts/data/synergy_rule.gd" id="1_syn"]
+
+[resource]
+script = ExtResource("1_syn")
+id = &"syn_arden_crossbowman_t2"
+display_name = "아르덴+석궁병 T2"
+description = "아르덴 석궁병이 인접했을 때 발동"
+applies_to_type = &"nation_arden"
+requires_adjacent_type = &"class_crossbowman"
+min_adjacent = 2
+attack_bonus_pct = 0.1
+hp_bonus_pct = 0.0
+attack_speed_bonus_pct = 0.1
+move_speed_bonus_pct = 0.0
+range_bonus_pct = 0.2

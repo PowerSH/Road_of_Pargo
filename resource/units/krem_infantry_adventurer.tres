@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://bu6bc1s06t1ly" path="res://scripts/data/unit_data.gd" id="1_unit"]
+
+[resource]
+script = ExtResource("1_unit")
+id = &"krem_infantry_adventurer"
+display_name = "크렘 모험가 보병"
+max_hp = 160.0
+attack = 13.0
+attack_speed = 1.15
+attack_range = 80.0
+move_speed = 135.0
+types = Array[StringName]([&"nation_krem", &"class_infantry", &"type_adventurer"])
+cost = 2
+tier = 2

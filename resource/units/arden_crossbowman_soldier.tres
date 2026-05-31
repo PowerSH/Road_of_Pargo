@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://bu6bc1s06t1ly" path="res://scripts/data/unit_data.gd" id="1_unit"]
+
+[resource]
+script = ExtResource("1_unit")
+id = &"arden_crossbowman_soldier"
+display_name = "아르덴 군인 석궁병"
+max_hp = 130.0
+attack = 20.0
+attack_speed = 0.65
+attack_range = 360.0
+move_speed = 95.0
+types = Array[StringName]([&"nation_arden", &"class_crossbowman", &"type_soldier"])
+cost = 2
+tier = 2

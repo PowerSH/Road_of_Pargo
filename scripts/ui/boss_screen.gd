@@ -4,6 +4,10 @@ extends Control
 ## 최종 챕터 보스 처치 = 게임 클리어 (별도 처리 필요, 후순위).
 
 
+func _ready() -> void:
+	ScreenHelpers.add_background(self, "res://resource/bg_img/bg_canyon.jpg")
+
+
 func _on_victory_pressed() -> void:
 	print("[Boss] 승리 — 다음 거점")
 	# TODO: 챕터 카운터 증가, 다음 챕터 맵 재생성 (RunState 확장 필요)

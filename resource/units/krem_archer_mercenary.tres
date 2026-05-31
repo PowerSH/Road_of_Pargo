@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://bu6bc1s06t1ly" path="res://scripts/data/unit_data.gd" id="1_unit"]
+
+[resource]
+script = ExtResource("1_unit")
+id = &"krem_archer_mercenary"
+display_name = "크렘 용병 궁병"
+max_hp = 110.0
+attack = 12.0
+attack_speed = 1.05
+attack_range = 300.0
+move_speed = 120.0
+types = Array[StringName]([&"nation_krem", &"class_archer", &"type_mercenary"])
+cost = 1
+tier = 1

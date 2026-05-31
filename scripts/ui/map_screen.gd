@@ -17,6 +17,7 @@ var _back_button: Button
 
 
 func _ready() -> void:
+	ScreenHelpers.add_background(self, "res://resource/bg_img/bg_widefield.jpg")
 	if GameState.run == null:
 		push_warning("[MapScreen] GameState.run is null — 메인 메뉴로 복귀")
 		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")

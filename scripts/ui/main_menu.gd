@@ -5,6 +5,7 @@ extends Control
 
 
 func _ready() -> void:
+	ScreenHelpers.add_background(self, "res://resource/bg_img/bg_main.jpg")
 	print("[MainMenu] _ready 호출됨 — 스크립트가 정상 부착됨")
 
 
