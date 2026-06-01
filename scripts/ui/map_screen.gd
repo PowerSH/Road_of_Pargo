@@ -5,7 +5,11 @@ extends Control
 ## kind 아이콘 표시, 나머지는 "?".
 
 const NODE_SIZE: Vector2 = Vector2(56, 56)
-const PADDING: Vector2 = Vector2(80, 80)
+## 컴팩트 레이아웃 — 노드 사이 절대 간격 고정. 화면을 꽉 채우지 않고 중앙 배치.
+const X_STEP: float = 120.0
+const Y_STEP: float = 90.0
+## 화면 가장자리 최소 여백 (info 라벨/뒤로 가기 버튼이 자리잡을 영역 확보).
+const MIN_MARGIN: Vector2 = Vector2(120, 100)
 const EDGE_COLOR_NORMAL: Color = Color(0.35, 0.35, 0.45)
 const EDGE_COLOR_HIGHLIGHT: Color = Color(0.85, 0.75, 0.35)
 const EDGE_WIDTH: float = 2.5
@@ -70,19 +74,42 @@ func _rebuild() -> void:
 
 
 func _compute_positions() -> Array[Vector2]:
-	var positions: Array[Vector2] = []
+	# 각 depth의 lane 수를 먼저 집계.
+	var lanes_at_depth: Dictionary = {}  ## depth -> count
 	var max_depth: int = 0
-	var max_lane: int = 0
 	for n: MapNode in GameState.run.nodes:
-		max_depth = max(max_depth, n.depth)
-		max_lane = max(max_lane, n.lane)
+		lanes_at_depth[n.depth] = lanes_at_depth.get(n.depth, 0) + 1
+		if n.depth > max_depth:
+			max_depth = n.depth
 
-	var avail: Vector2 = size - PADDING * 2.0
-	var x_step: float = avail.x / max(max_depth, 1)
-	var y_step: float = avail.y / max(max_lane, 1)
+	# 맵 전체 박스 크기 (가로: depth 수 * X_STEP, 세로: 가장 넓은 depth 기준)
+	var max_lanes_in_any_depth: int = 1
+	for w in lanes_at_depth.values():
+		if int(w) > max_lanes_in_any_depth:
+			max_lanes_in_any_depth = int(w)
 
+	var map_w: float = float(max_depth) * X_STEP
+	var map_h: float = float(max_lanes_in_any_depth - 1) * Y_STEP
+
+	# 화면 중앙 정렬 (단, 최소 여백 확보).
+	var screen_size: Vector2 = size
+	var origin_x: float = maxf((screen_size.x - map_w) * 0.5, MIN_MARGIN.x)
+	var origin_y: float = maxf((screen_size.y - map_h) * 0.5, MIN_MARGIN.y)
+	var origin: Vector2 = Vector2(origin_x, origin_y)
+	var center_y: float = map_h * 0.5
+
+	# 각 노드의 위치: depth → X, lane → 해당 depth 폭 안에서 세로 중앙 정렬.
+	var positions: Array[Vector2] = []
 	for n: MapNode in GameState.run.nodes:
-		positions.append(PADDING + Vector2(n.depth * x_step, n.lane * y_step))
+		var w_here: int = int(lanes_at_depth.get(n.depth, 1))
+		var y_offset: float
+		if w_here == 1:
+			y_offset = center_y
+		else:
+			# lane 0..w-1을 (w-1) 등간격으로 분배, 깊이 가운데(center_y)에 대칭.
+			var span: float = float(w_here - 1) * Y_STEP
+			y_offset = center_y - span * 0.5 + float(n.lane) * Y_STEP
+		positions.append(origin + Vector2(float(n.depth) * X_STEP, y_offset))
 	return positions
 
 
@@ -168,9 +195,12 @@ func _on_back_pressed() -> void:
 
 
 func _update_info() -> void:
-	_info_label.text = "HP: %d/%d   Gold: %d   Depth: %d" % [
-		GameState.run.health,
-		GameState.run.max_health,
+	# 폐기된 RunState.health/max_health는 표시에서 제외 (R4 합의).
+	var depth_now: int = 0
+	if GameState.run.current_node_index >= 0:
+		depth_now = GameState.run.nodes[GameState.run.current_node_index].depth
+	_info_label.text = "Chapter %d   Gold: %d   Depth: %d" % [
+		GameState.run.chapter,
 		GameState.run.gold,
-		GameState.run.nodes[GameState.run.current_node_index].depth if GameState.run.current_node_index >= 0 else 0,
+		depth_now,
 	]
