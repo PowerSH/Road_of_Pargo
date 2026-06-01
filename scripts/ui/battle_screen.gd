@@ -71,6 +71,7 @@ func _exit_tree() -> void:
 
 const UNITS_DIR: String = "res://resource/units/"
 const SYNERGIES_DIR: String = "res://resource/synergies/"
+const ENCOUNTERS_DIR: String = "res://resource/encounters/"
 
 
 func _ensure_test_data() -> void:
@@ -94,8 +95,11 @@ func _ensure_test_data() -> void:
 			GameState.run.active_rules = rules
 			print("[BattleScreen] loaded %d synergy rules" % rules.size())
 
-	# 4. 적 인카운터 (아직 mock)
-	_encounter_template = _make_mock_encounter()
+	# 4. 적 인카운터 — 디스크 우선, 없으면 mock
+	_encounter_template = _load_encounter_from_disk()
+	if _encounter_template == null:
+		print("[BattleScreen] no encounter on disk — falling back to mock")
+		_encounter_template = _make_mock_encounter()
 
 
 ## 디스크의 .tres 들을 OwnedUnit으로 영입. 영입 개수 반환.
@@ -114,6 +118,28 @@ func _seed_from_disk() -> int:
 				count += 1
 		fname = dir.get_next()
 	return count
+
+
+## 디스크의 인카운터 .tres 중 하나를 무작위 선택. 없으면 null.
+func _load_encounter_from_disk() -> EncounterTemplate:
+	var dir: DirAccess = DirAccess.open(ENCOUNTERS_DIR)
+	if dir == null:
+		return null
+	var candidates: Array[String] = []
+	dir.list_dir_begin()
+	var fname: String = dir.get_next()
+	while fname != "":
+		if not dir.current_is_dir() and fname.ends_with(".tres"):
+			candidates.append(fname)
+		fname = dir.get_next()
+	if candidates.is_empty():
+		return null
+	var pick: String = candidates[randi() % candidates.size()]
+	var res: Resource = load(ENCOUNTERS_DIR + pick)
+	if res is EncounterTemplate:
+		print("[BattleScreen] loaded encounter: %s" % pick)
+		return res
+	return null
 
 
 func _load_synergies_from_disk() -> Array[SynergyRule]:
@@ -481,8 +507,10 @@ func _refresh_sidebar() -> void:
 
 		var name_str: String = owned.source.display_name if owned.source else "?"
 		var max_hp: float = owned.source.max_hp if owned.source else 0.0
+		var cur_hp: float = owned.get_starting_hp(max_hp)
 		var atk: float = owned.source.attack if owned.source else 0.0
-		btn.text = "%s %s\nHP %.0f / ATK %.0f" % [badge, name_str, max_hp, atk]
+		# 부상 유닛(current_hp == 0)도 현재값 표시 — 이전엔 max_hp만 표시했음.
+		btn.text = "%s %s\nHP %.0f / %.0f  ATK %.0f" % [badge, name_str, cur_hp, max_hp, atk]
 		btn.disabled = not deployable
 
 		if _selected_owned == owned:
@@ -565,7 +593,8 @@ func _cell_drag_get(_at_pos: Vector2, row: int, col: int) -> Variant:
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override(&"font_size", 10)
 	if owned.source != null:
-		lbl.text = "%s\nHP %.0f" % [owned.source.display_name, owned.source.max_hp]
+		var cur_hp: float = owned.get_starting_hp(owned.source.max_hp)
+		lbl.text = "%s\nHP %.0f / %.0f" % [owned.source.display_name, cur_hp, owned.source.max_hp]
 	else:
 		lbl.text = "?"
 	preview.add_child(lbl)
