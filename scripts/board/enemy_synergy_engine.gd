@@ -48,6 +48,15 @@ static func compute_pre_battle(board: BoardState, rules: Array[EnemySynergyRule]
 		var atkspd_bonus: float = 0.0
 		var movespd_bonus: float = 0.0
 		var range_bonus: float = 0.0
+		# v2 additive 누적
+		var def_b: float = 0.0
+		var cc_b: float = 0.0
+		var cm_b: float = 0.0
+		var ap_b: float = 0.0
+		var ls_b: float = 0.0
+		var hr_b: float = 0.0
+		var ac_b: float = 0.0
+		var av_b: float = 0.0
 		var applied: Array[StringName] = []
 
 		for rule in pre_rules:
@@ -76,6 +85,15 @@ static func compute_pre_battle(board: BoardState, rules: Array[EnemySynergyRule]
 				atkspd_bonus += rule.attack_speed_bonus_pct
 				movespd_bonus += rule.move_speed_bonus_pct
 				range_bonus += rule.range_bonus_pct
+				# v2 additive (모두 누적, ComputedStats에 한 번에 합산)
+				def_b += rule.defense_bonus
+				cc_b += rule.crit_chance_bonus
+				cm_b += rule.crit_multiplier_bonus
+				ap_b += rule.armor_penetration_bonus
+				ls_b += rule.lifesteal_bonus
+				hr_b += rule.hp_regen_bonus
+				ac_b += rule.accuracy_bonus
+				av_b += rule.attack_variance_pct_bonus
 				applied.append(rule.id)
 
 		var stats := ComputedStats.from_enemy(unit)
@@ -84,6 +102,14 @@ static func compute_pre_battle(board: BoardState, rules: Array[EnemySynergyRule]
 		stats.attack_speed = unit.attack_speed * (1.0 + atkspd_bonus)
 		stats.attack_range = unit.attack_range * (1.0 + range_bonus)
 		stats.move_speed = unit.move_speed * (1.0 + movespd_bonus)
+		stats.defense = clampf(unit.defense + def_b, 0.0, 0.95)
+		stats.crit_chance = clampf(unit.crit_chance + cc_b, 0.0, 1.0)
+		stats.crit_multiplier = maxf(unit.crit_multiplier + cm_b, 1.0)
+		stats.armor_penetration = clampf(unit.armor_penetration + ap_b, 0.0, 1.0)
+		stats.lifesteal = clampf(unit.lifesteal + ls_b, 0.0, 1.0)
+		stats.hp_regen = maxf(unit.hp_regen + hr_b, 0.0)
+		stats.accuracy = clampf(unit.accuracy + ac_b, 0.0, 1.0)
+		stats.attack_variance_pct = clampf(unit.attack_variance_pct + av_b, 0.0, 1.0)
 		stats.applied_synergies = applied
 
 		result[Vector2i(col, row)] = stats

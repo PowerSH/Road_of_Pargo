@@ -203,6 +203,15 @@ class Unit:
     cls: str = ""
     typ: str = ""
     power: float = 0.0
+    # v2 combat stats
+    defense: float = 0.0
+    crit_chance: float = 0.0
+    crit_multiplier: float = 1.5
+    armor_penetration: float = 0.0
+    lifesteal: float = 0.0
+    hp_regen: float = 0.0
+    accuracy: float = 0.0
+    attack_variance_pct: float = 0.20
 
 
 @dataclass
@@ -277,6 +286,15 @@ def load_units() -> list[Unit]:
         )
         u.nation, u.cls, u.typ = classify_unit_types(types)
         u.power = power_score(u.max_hp, u.attack, u.attack_speed, u.attack_range, u.move_speed)
+        # v2 stats
+        u.defense = parse_float(data.get("defense", "0"))
+        u.crit_chance = parse_float(data.get("crit_chance", "0"))
+        u.crit_multiplier = parse_float(data.get("crit_multiplier", "1.5"))
+        u.armor_penetration = parse_float(data.get("armor_penetration", "0"))
+        u.lifesteal = parse_float(data.get("lifesteal", "0"))
+        u.hp_regen = parse_float(data.get("hp_regen", "0"))
+        u.accuracy = parse_float(data.get("accuracy", "0"))
+        u.attack_variance_pct = parse_float(data.get("attack_variance_pct", "0.20"))
         out.append(u)
     return out
 

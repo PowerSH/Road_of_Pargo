@@ -14,6 +14,26 @@ extends Resource
 ## World-space units per second.
 @export var move_speed: float = 120.0
 
+@export_group("Combat Stats v2 — 받는/주는 데미지 보정")
+## 받는 데미지 감산율 (0.10 = 10% 감산). 캡은 CombatUnit에서 0.95.
+@export_range(0.0, 0.95) var defense: float = 0.0
+## 크리티컬 발동 확률.
+@export_range(0.0, 1.0) var crit_chance: float = 0.0
+## 크리티컬 시 데미지 곱셈자.
+@export_range(1.0, 5.0) var crit_multiplier: float = 1.5
+## 대상의 defense를 (1 - armor_penetration) 만큼 무력화.
+@export_range(0.0, 1.0) var armor_penetration: float = 0.0
+## 가한 데미지 × lifesteal 만큼 자기 회복.
+@export_range(0.0, 1.0) var lifesteal: float = 0.0
+## 초당 HP 회복량 (절대값).
+@export var hp_regen: float = 0.0
+## 데미지 분산 축소 비율 (0=풀 분산, 1=정확). attack_variance_pct와 페어.
+@export_range(0.0, 1.0) var accuracy: float = 0.0
+## 데미지 기본 분산 폭 (0.20 = ±20%).
+##   effective_spread = attack_variance_pct × (1 - accuracy)
+##   damage = attack × random[1-spread, 1+spread]
+@export_range(0.0, 1.0) var attack_variance_pct: float = 0.20
+
 @export_group("Synergy")
 ## Synergy tags. Each unit carries one tag per axis (nation/class/type) plus
 ## any item-granted tags. See SynergyTypes for the canonical constants and

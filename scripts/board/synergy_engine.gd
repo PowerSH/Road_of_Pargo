@@ -43,11 +43,21 @@ static func compute(board: BoardState, rules: Array[SynergyRule]) -> Dictionary:
 			if prev == null or rule.min_adjacent > prev.min_adjacent:
 				best_per_group[key] = rule
 
+		# v1 multiplicative bonuses
 		var atk_bonus: float = 0.0
 		var hp_bonus: float = 0.0
 		var atkspd_bonus: float = 0.0
 		var movespd_bonus: float = 0.0
 		var range_bonus: float = 0.0
+		# v2 additive bonuses
+		var defense_bonus: float = 0.0
+		var crit_chance_bonus: float = 0.0
+		var crit_multiplier_bonus: float = 0.0
+		var armor_pen_bonus: float = 0.0
+		var lifesteal_bonus: float = 0.0
+		var hp_regen_bonus: float = 0.0
+		var accuracy_bonus: float = 0.0
+		var attack_variance_bonus: float = 0.0
 		var applied: Array[StringName] = []
 
 		for rule: SynergyRule in best_per_group.values():
@@ -56,6 +66,14 @@ static func compute(board: BoardState, rules: Array[SynergyRule]) -> Dictionary:
 			atkspd_bonus += rule.attack_speed_bonus_pct
 			movespd_bonus += rule.move_speed_bonus_pct
 			range_bonus += rule.range_bonus_pct
+			defense_bonus += rule.defense_bonus
+			crit_chance_bonus += rule.crit_chance_bonus
+			crit_multiplier_bonus += rule.crit_multiplier_bonus
+			armor_pen_bonus += rule.armor_penetration_bonus
+			lifesteal_bonus += rule.lifesteal_bonus
+			hp_regen_bonus += rule.hp_regen_bonus
+			accuracy_bonus += rule.accuracy_bonus
+			attack_variance_bonus += rule.attack_variance_pct_bonus
 			applied.append(rule.id)
 
 		var stats := ComputedStats.from_base(unit)
@@ -64,6 +82,15 @@ static func compute(board: BoardState, rules: Array[SynergyRule]) -> Dictionary:
 		stats.attack_speed = unit.attack_speed * (1.0 + atkspd_bonus)
 		stats.attack_range = unit.attack_range * (1.0 + range_bonus)
 		stats.move_speed = unit.move_speed * (1.0 + movespd_bonus)
+		# v2 additive
+		stats.defense = clampf(unit.defense + defense_bonus, 0.0, 0.95)
+		stats.crit_chance = clampf(unit.crit_chance + crit_chance_bonus, 0.0, 1.0)
+		stats.crit_multiplier = maxf(unit.crit_multiplier + crit_multiplier_bonus, 1.0)
+		stats.armor_penetration = clampf(unit.armor_penetration + armor_pen_bonus, 0.0, 1.0)
+		stats.lifesteal = clampf(unit.lifesteal + lifesteal_bonus, 0.0, 1.0)
+		stats.hp_regen = maxf(unit.hp_regen + hp_regen_bonus, 0.0)
+		stats.accuracy = clampf(unit.accuracy + accuracy_bonus, 0.0, 1.0)
+		stats.attack_variance_pct = clampf(unit.attack_variance_pct + attack_variance_bonus, 0.0, 1.0)
 		stats.applied_synergies = applied
 
 		result[Vector2i(col, row)] = stats

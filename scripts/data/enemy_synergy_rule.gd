@@ -30,12 +30,22 @@ enum EffectType {
 ## HP_THRESHOLD의 임계 비율 (0.5 = 50% 이하일 때 발동).
 @export_range(0.0, 1.0) var hp_threshold: float = 0.5
 
-@export_group("Effects (percent, 0.10 == +10%)")
+@export_group("Effects v1 (multiplicative, 0.10 == +10% of base)")
 @export var attack_bonus_pct: float = 0.0
 @export var hp_bonus_pct: float = 0.0
 @export var attack_speed_bonus_pct: float = 0.0
 @export var move_speed_bonus_pct: float = 0.0
 @export var range_bonus_pct: float = 0.0
+
+@export_group("Effects v2 (additive — 절대값 가산)")
+@export var defense_bonus: float = 0.0
+@export var crit_chance_bonus: float = 0.0
+@export var crit_multiplier_bonus: float = 0.0
+@export var armor_penetration_bonus: float = 0.0
+@export var lifesteal_bonus: float = 0.0
+@export var hp_regen_bonus: float = 0.0
+@export var accuracy_bonus: float = 0.0
+@export var attack_variance_pct_bonus: float = 0.0
 
 
 ## 전투 시작 전에 ComputedStats로 합쳐지는 규칙(true)인지,

@@ -17,6 +17,16 @@ extends Resource
 ## World-space units per second.
 @export var move_speed: float = 120.0
 
+@export_group("Combat Stats v2 — 받는/주는 데미지 보정")
+@export_range(0.0, 0.95) var defense: float = 0.0
+@export_range(0.0, 1.0) var crit_chance: float = 0.0
+@export_range(1.0, 5.0) var crit_multiplier: float = 1.5
+@export_range(0.0, 1.0) var armor_penetration: float = 0.0
+@export_range(0.0, 1.0) var lifesteal: float = 0.0
+@export var hp_regen: float = 0.0
+@export_range(0.0, 1.0) var accuracy: float = 0.0
+@export_range(0.0, 1.0) var attack_variance_pct: float = 0.20
+
 @export_group("Enemy Identity")
 ## 진영 태그. EnemySynergyRule이 이 값을 기준으로 매칭한다.
 ## Array로 둔 이유: 추후 다축 시너지(예: 종족 + 직책)로 확장 여지.

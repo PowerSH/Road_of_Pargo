@@ -18,12 +18,22 @@ enum EffectType {
 @export_multiline var description: String
 @export var effect_type: EffectType = EffectType.STAT_BOOST
 
-@export_group("Bonuses (percent, 0.10 == +10% / -10%)")
+@export_group("Bonuses v1 (multiplicative, 0.10 == +10% / -10%)")
 @export var attack_bonus_pct: float = 0.0
 @export var hp_bonus_pct: float = 0.0
 @export var attack_speed_bonus_pct: float = 0.0
 @export var move_speed_bonus_pct: float = 0.0
 @export var range_bonus_pct: float = 0.0
+
+@export_group("Bonuses v2 (additive — 절대값)")
+@export var defense_bonus: float = 0.0
+@export var crit_chance_bonus: float = 0.0
+@export var crit_multiplier_bonus: float = 0.0
+@export var armor_penetration_bonus: float = 0.0
+@export var lifesteal_bonus: float = 0.0
+@export var hp_regen_bonus: float = 0.0
+@export var accuracy_bonus: float = 0.0
+@export var attack_variance_pct_bonus: float = 0.0
 
 @export_group("Filter / Target")
 ## STAT_BOOST / ENEMY_DEBUFF / SHIELD: 특정 태그 보유 유닛에만 적용.

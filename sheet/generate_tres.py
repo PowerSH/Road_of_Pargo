@@ -81,7 +81,10 @@ TYP = {
 
 
 def unit_tres(uid: str, display: str, max_hp, atk, atk_spd, atk_rng, mv_spd,
-              types_consts, cost, tier) -> str:
+              types_consts, cost, tier,
+              defense=0.0, crit_chance=0.0, crit_multiplier=1.5,
+              armor_penetration=0.0, lifesteal=0.0, hp_regen=0.0,
+              accuracy=0.0, attack_variance_pct=0.20) -> str:
     types_lit = "Array[StringName]([" + ", ".join(f'&"{t}"' for t in types_consts) + "])"
     return f"""[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
 
@@ -99,11 +102,22 @@ move_speed = {float(mv_spd)}
 types = {types_lit}
 cost = {int(cost) if cost is not None else 1}
 tier = {int(tier) if tier is not None else 1}
+defense = {float(defense or 0.0)}
+crit_chance = {float(crit_chance or 0.0)}
+crit_multiplier = {float(crit_multiplier or 1.5)}
+armor_penetration = {float(armor_penetration or 0.0)}
+lifesteal = {float(lifesteal or 0.0)}
+hp_regen = {float(hp_regen or 0.0)}
+accuracy = {float(accuracy or 0.0)}
+attack_variance_pct = {float(attack_variance_pct if attack_variance_pct is not None else 0.20)}
 """
 
 
 def syn_tres(uid, display, description, applies_to, requires_adj, min_adj,
-             atk_pct, hp_pct, atkspd_pct, mvspd_pct, rng_pct) -> str:
+             atk_pct, hp_pct, atkspd_pct, mvspd_pct, rng_pct,
+             defense_bonus=0.0, crit_chance_bonus=0.0, crit_multiplier_bonus=0.0,
+             armor_penetration_bonus=0.0, lifesteal_bonus=0.0, hp_regen_bonus=0.0,
+             accuracy_bonus=0.0, attack_variance_pct_bonus=0.0) -> str:
     return f"""[gd_resource type="Resource" script_class="SynergyRule" load_steps=2 format=3]
 
 [ext_resource type="Script" uid="{SYN_SCRIPT_UID}" path="{SYN_SCRIPT_PATH}" id="1_syn"]
@@ -121,11 +135,22 @@ hp_bonus_pct = {float(hp_pct or 0.0)}
 attack_speed_bonus_pct = {float(atkspd_pct or 0.0)}
 move_speed_bonus_pct = {float(mvspd_pct or 0.0)}
 range_bonus_pct = {float(rng_pct or 0.0)}
+defense_bonus = {float(defense_bonus or 0.0)}
+crit_chance_bonus = {float(crit_chance_bonus or 0.0)}
+crit_multiplier_bonus = {float(crit_multiplier_bonus or 0.0)}
+armor_penetration_bonus = {float(armor_penetration_bonus or 0.0)}
+lifesteal_bonus = {float(lifesteal_bonus or 0.0)}
+hp_regen_bonus = {float(hp_regen_bonus or 0.0)}
+accuracy_bonus = {float(accuracy_bonus or 0.0)}
+attack_variance_pct_bonus = {float(attack_variance_pct_bonus or 0.0)}
 """
 
 
 def enemy_unit_tres(uid, display, max_hp, atk, atk_spd, atk_rng, mv_spd,
-                    faction_tags, is_boss) -> str:
+                    faction_tags, is_boss,
+                    defense=0.0, crit_chance=0.0, crit_multiplier=1.5,
+                    armor_penetration=0.0, lifesteal=0.0, hp_regen=0.0,
+                    accuracy=0.0, attack_variance_pct=0.20) -> str:
     factions = [t.strip() for t in str(faction_tags or "").split(",") if t.strip()]
     factions_lit = "Array[StringName]([" + ", ".join(f'&"{t}"' for t in factions) + "])"
     return f"""[gd_resource type="Resource" script_class="EnemyUnitData" load_steps=2 format=3]
@@ -143,12 +168,23 @@ attack_range = {float(atk_rng)}
 move_speed = {float(mv_spd)}
 faction_tags = {factions_lit}
 is_boss = {"true" if bool(is_boss) else "false"}
+defense = {float(defense or 0.0)}
+crit_chance = {float(crit_chance or 0.0)}
+crit_multiplier = {float(crit_multiplier or 1.5)}
+armor_penetration = {float(armor_penetration or 0.0)}
+lifesteal = {float(lifesteal or 0.0)}
+hp_regen = {float(hp_regen or 0.0)}
+accuracy = {float(accuracy or 0.0)}
+attack_variance_pct = {float(attack_variance_pct if attack_variance_pct is not None else 0.20)}
 """
 
 
 def enemy_syn_tres(uid, display, description, effect_type_int, trigger_faction,
                    trigger_count, hp_threshold,
-                   atk_pct, hp_pct, atkspd_pct, mvspd_pct, rng_pct) -> str:
+                   atk_pct, hp_pct, atkspd_pct, mvspd_pct, rng_pct,
+                   defense_bonus=0.0, crit_chance_bonus=0.0, crit_multiplier_bonus=0.0,
+                   armor_penetration_bonus=0.0, lifesteal_bonus=0.0, hp_regen_bonus=0.0,
+                   accuracy_bonus=0.0, attack_variance_pct_bonus=0.0) -> str:
     return f"""[gd_resource type="Resource" script_class="EnemySynergyRule" load_steps=2 format=3]
 
 [ext_resource type="Script" uid="{ENEMY_SYN_SCRIPT_UID}" path="{ENEMY_SYN_SCRIPT_PATH}" id="1_es"]
@@ -167,6 +203,14 @@ hp_bonus_pct = {float(hp_pct or 0.0)}
 attack_speed_bonus_pct = {float(atkspd_pct or 0.0)}
 move_speed_bonus_pct = {float(mvspd_pct or 0.0)}
 range_bonus_pct = {float(rng_pct or 0.0)}
+defense_bonus = {float(defense_bonus or 0.0)}
+crit_chance_bonus = {float(crit_chance_bonus or 0.0)}
+crit_multiplier_bonus = {float(crit_multiplier_bonus or 0.0)}
+armor_penetration_bonus = {float(armor_penetration_bonus or 0.0)}
+lifesteal_bonus = {float(lifesteal_bonus or 0.0)}
+hp_regen_bonus = {float(hp_regen_bonus or 0.0)}
+accuracy_bonus = {float(accuracy_bonus or 0.0)}
+attack_variance_pct_bonus = {float(attack_variance_pct_bonus or 0.0)}
 """
 
 
@@ -306,6 +350,14 @@ def main():
             types_consts=[nation_const, class_const, type_const],
             cost=row[h["cost"]],
             tier=row[h["tier"]],
+            defense=row[h["defense"]] if "defense" in h else 0.0,
+            crit_chance=row[h["crit_chance"]] if "crit_chance" in h else 0.0,
+            crit_multiplier=row[h["crit_multiplier"]] if "crit_multiplier" in h else 1.5,
+            armor_penetration=row[h["armor_penetration"]] if "armor_penetration" in h else 0.0,
+            lifesteal=row[h["lifesteal"]] if "lifesteal" in h else 0.0,
+            hp_regen=row[h["hp_regen"]] if "hp_regen" in h else 0.0,
+            accuracy=row[h["accuracy"]] if "accuracy" in h else 0.0,
+            attack_variance_pct=row[h["attack_variance_pct"]] if "attack_variance_pct" in h else 0.20,
         )
         out_path = os.path.join(UNITS_DIR, f"{uid}.tres")
         with open(out_path, "w", encoding="utf-8") as f:
@@ -367,8 +419,16 @@ def main():
             atk_pct=row[h["attack_bonus_pct"]],
             hp_pct=row[h["hp_bonus_pct"]],
             atkspd_pct=row[h["attack_speed_bonus_pct"]],
-            mvspd_pct=0.0,  # 시트에 컬럼 없음
+            mvspd_pct=0.0,  # 시트에 v1 컬럼 없음
             rng_pct=row[h["range_bonus_pct"]],
+            defense_bonus=row[h["defense_bonus"]] if "defense_bonus" in h else 0.0,
+            crit_chance_bonus=row[h["crit_chance_bonus"]] if "crit_chance_bonus" in h else 0.0,
+            crit_multiplier_bonus=row[h["crit_multiplier_bonus"]] if "crit_multiplier_bonus" in h else 0.0,
+            armor_penetration_bonus=row[h["armor_penetration_bonus"]] if "armor_penetration_bonus" in h else 0.0,
+            lifesteal_bonus=row[h["lifesteal_bonus"]] if "lifesteal_bonus" in h else 0.0,
+            hp_regen_bonus=row[h["hp_regen_bonus"]] if "hp_regen_bonus" in h else 0.0,
+            accuracy_bonus=row[h["accuracy_bonus"]] if "accuracy_bonus" in h else 0.0,
+            attack_variance_pct_bonus=row[h["attack_variance_pct_bonus"]] if "attack_variance_pct_bonus" in h else 0.0,
         )
         out_path = os.path.join(SYN_DIR, f"{uid}.tres")
         with open(out_path, "w", encoding="utf-8") as f:
@@ -397,6 +457,14 @@ def main():
             mv_spd=row[h["move_speed"]],
             faction_tags=row[h["faction_tags"]],
             is_boss=row[h["is_boss"]],
+            defense=row[h["defense"]] if "defense" in h else 0.0,
+            crit_chance=row[h["crit_chance"]] if "crit_chance" in h else 0.0,
+            crit_multiplier=row[h["crit_multiplier"]] if "crit_multiplier" in h else 1.5,
+            armor_penetration=row[h["armor_penetration"]] if "armor_penetration" in h else 0.0,
+            lifesteal=row[h["lifesteal"]] if "lifesteal" in h else 0.0,
+            hp_regen=row[h["hp_regen"]] if "hp_regen" in h else 0.0,
+            accuracy=row[h["accuracy"]] if "accuracy" in h else 0.0,
+            attack_variance_pct=row[h["attack_variance_pct"]] if "attack_variance_pct" in h else 0.20,
         )
         out_path = os.path.join(ENEMY_UNITS_DIR, f"{eid}.tres")
         with open(out_path, "w", encoding="utf-8") as f:
@@ -434,6 +502,14 @@ def main():
             atkspd_pct=row[h["attack_speed_bonus_pct"]],
             mvspd_pct=row[h["move_speed_bonus_pct"]],
             rng_pct=row[h["range_bonus_pct"]],
+            defense_bonus=row[h["defense_bonus"]] if "defense_bonus" in h else 0.0,
+            crit_chance_bonus=row[h["crit_chance_bonus"]] if "crit_chance_bonus" in h else 0.0,
+            crit_multiplier_bonus=row[h["crit_multiplier_bonus"]] if "crit_multiplier_bonus" in h else 0.0,
+            armor_penetration_bonus=row[h["armor_penetration_bonus"]] if "armor_penetration_bonus" in h else 0.0,
+            lifesteal_bonus=row[h["lifesteal_bonus"]] if "lifesteal_bonus" in h else 0.0,
+            hp_regen_bonus=row[h["hp_regen_bonus"]] if "hp_regen_bonus" in h else 0.0,
+            accuracy_bonus=row[h["accuracy_bonus"]] if "accuracy_bonus" in h else 0.0,
+            attack_variance_pct_bonus=row[h["attack_variance_pct_bonus"]] if "attack_variance_pct_bonus" in h else 0.0,
         )
         out_path = os.path.join(ENEMY_SYN_DIR, f"{sid}.tres")
         with open(out_path, "w", encoding="utf-8") as f:

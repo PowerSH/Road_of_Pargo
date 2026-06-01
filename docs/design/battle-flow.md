@@ -151,6 +151,38 @@ EnemyStats:  Array[ComputedStats]  ← EnemySynergyEngine.compute_pre_battle() +
 CombatManager.start_battle(player_stats, enemy_stats, combat_time_rules)
 ```
 
+### 데미지 공식 (Combat Stats v2 — 2026-06-01 갱신)
+
+기존 단일 `attack` 값에서 **8개 새 전투 변수** 도입. 데미지 산출은 attacker가 일괄 처리하고 `target.take_damage(final)` 호출.
+
+```
+공격 시 (attacker에서 계산):
+  raw = effective_attack × random[1 - spread, 1 + spread]
+    spread = attack_variance_pct × (1 - accuracy)
+  if random() < crit_chance:
+    raw × = crit_multiplier
+  effective_def = clamp(target.defense × (1 - armor_penetration), 0, 0.95)
+  final = max(raw × (1 - effective_def), 0)
+  target.take_damage(final)
+  if lifesteal > 0: self.heal(final × lifesteal)
+
+매 틱:
+  if hp_regen > 0: self.heal(hp_regen × delta)
+```
+
+| 변수 | 의미 | 기본값 | 범위 | 캡 |
+|---|---|---|---|---|
+| `defense` | 받는 데미지 감산율 | 0.0 | 0~0.95 | 0.95 (무적 방지) |
+| `crit_chance` | 크리 확률 | 0.0 | 0~1.0 | 1.0 |
+| `crit_multiplier` | 크리 시 배율 | 1.5 | 1.0~5.0 | 1.0 최소 |
+| `armor_penetration` | 대상 defense 무력화율 | 0.0 | 0~1.0 | 1.0 |
+| `lifesteal` | 가한 데미지의 N% 자기 회복 | 0.0 | 0~1.0 | 1.0 |
+| `hp_regen` | 초당 HP 회복 (절대값) | 0.0 | 0~ | — |
+| `accuracy` | 분산 축소율 (1=정확) | 0.0 | 0~1.0 | 1.0 |
+| `attack_variance_pct` | 기본 분산 폭 | 0.20 | 0~1.0 | 1.0 |
+
+기존 24 유닛 + 7 적 모두 `attack_variance_pct=0.20` (±20% 분산) 일괄 적용. 다른 v2 변수는 모두 0 — 게임 즉시 변화는 분산 도입뿐.
+
 ### CombatManager 변경점 (구현 완료 — A+B 라운드)
 
 - `start_battle` 시그니처에 `combat_rules: Array[EnemySynergyRule] = []` 추가.

@@ -61,13 +61,22 @@ static func apply_to_enemy(stats_list: Array[ComputedStats],
 				var src: EnemyUnitData = enemy_sources[i] if i < enemy_sources.size() else null
 				if src == null or not src.has_faction(ef.target_filter_tag):
 					continue
-			# 디버프 = 음의 보너스로 작용
+			# 디버프 = 음의 보너스로 작용. v1은 % 감산, v2는 -bonus로 차감.
 			var s: ComputedStats = stats_list[i]
 			s.attack = s.attack * (1.0 - ef.attack_bonus_pct)
 			s.max_hp = s.max_hp * (1.0 - ef.hp_bonus_pct)
 			s.attack_speed = s.attack_speed * (1.0 - ef.attack_speed_bonus_pct)
 			s.move_speed = s.move_speed * (1.0 - ef.move_speed_bonus_pct)
 			s.attack_range = s.attack_range * (1.0 - ef.range_bonus_pct)
+			# v2 디버프 — 음수 가산
+			s.defense = clampf(s.defense - ef.defense_bonus, 0.0, 0.95)
+			s.crit_chance = clampf(s.crit_chance - ef.crit_chance_bonus, 0.0, 1.0)
+			s.crit_multiplier = maxf(s.crit_multiplier - ef.crit_multiplier_bonus, 1.0)
+			s.armor_penetration = clampf(s.armor_penetration - ef.armor_penetration_bonus, 0.0, 1.0)
+			s.lifesteal = clampf(s.lifesteal - ef.lifesteal_bonus, 0.0, 1.0)
+			s.hp_regen = maxf(s.hp_regen - ef.hp_regen_bonus, 0.0)
+			s.accuracy = clampf(s.accuracy - ef.accuracy_bonus, 0.0, 1.0)
+			s.attack_variance_pct = clampf(s.attack_variance_pct - ef.attack_variance_pct_bonus, 0.0, 1.0)
 
 
 ## FAKE_SYNERGY 효과들에서 가상 SynergyRule을 추출. SynergyEngine.compute 재호출 시
@@ -117,8 +126,18 @@ static func _apply_stat_boost(stats_list: Array[ComputedStats],
 			if not owned.source.has_type(ef.target_filter_tag):
 				continue
 		var s: ComputedStats = stats_list[i]
+		# v1 multiplicative
 		s.attack = s.attack * (1.0 + ef.attack_bonus_pct)
 		s.max_hp = s.max_hp * (1.0 + ef.hp_bonus_pct)
 		s.attack_speed = s.attack_speed * (1.0 + ef.attack_speed_bonus_pct)
 		s.move_speed = s.move_speed * (1.0 + ef.move_speed_bonus_pct)
 		s.attack_range = s.attack_range * (1.0 + ef.range_bonus_pct)
+		# v2 additive — 캡 적용
+		s.defense = clampf(s.defense + ef.defense_bonus, 0.0, 0.95)
+		s.crit_chance = clampf(s.crit_chance + ef.crit_chance_bonus, 0.0, 1.0)
+		s.crit_multiplier = maxf(s.crit_multiplier + ef.crit_multiplier_bonus, 1.0)
+		s.armor_penetration = clampf(s.armor_penetration + ef.armor_penetration_bonus, 0.0, 1.0)
+		s.lifesteal = clampf(s.lifesteal + ef.lifesteal_bonus, 0.0, 1.0)
+		s.hp_regen = maxf(s.hp_regen + ef.hp_regen_bonus, 0.0)
+		s.accuracy = clampf(s.accuracy + ef.accuracy_bonus, 0.0, 1.0)
+		s.attack_variance_pct = clampf(s.attack_variance_pct + ef.attack_variance_pct_bonus, 0.0, 1.0)
