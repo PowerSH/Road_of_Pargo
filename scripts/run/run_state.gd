@@ -68,6 +68,21 @@ func tick_injury_countdowns() -> void:
 		u.tick_injury_countdown()
 
 
+## 챕터 보스 처치 후 호출. 마지막 챕터(3)였으면 run clear (false 반환).
+## 그 외엔 chapter 증가 + 새 맵 + 노드 초기화 + boss 공개. true 반환.
+const MAX_CHAPTER: int = 3
+
+func advance_chapter(rng: RandomNumberGenerator) -> bool:
+	if chapter >= MAX_CHAPTER:
+		return false
+	chapter += 1
+	nodes = MapGenerator.generate(rng)
+	current_node_index = -1
+	revealed_nodes.clear()
+	# reveal_initial은 GameState에서 별도 호출. 여기서는 노드만 갈아치움.
+	return true
+
+
 func spend_gold(amount: int) -> bool:
 	if gold < amount:
 		return false

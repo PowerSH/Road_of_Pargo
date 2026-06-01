@@ -28,6 +28,17 @@ var _attack_cooldown: float = 0.0
 ## write-back에 사용. enemy 측은 null.
 var owned: OwnedUnit = null
 
+## 전투 중 누적되는 % 보너스 (combat-time 시너지 hook + ItemEffect의 SHIELD 외 효과로 부여).
+## stats는 pre-battle 스냅샷이라 불변; effective_*() 메서드가 동적으로 합성한다.
+## hp_bonus는 의도적으로 제외 — 전투 중 HP 부스트는 다른 메카닉(heal)으로.
+var bonus_attack_pct: float = 0.0
+var bonus_attack_speed_pct: float = 0.0
+var bonus_move_speed_pct: float = 0.0
+var bonus_range_pct: float = 0.0
+
+## ItemEffect.SHIELD에서 부여되는 절대값 보호막. 데미지를 먼저 흡수.
+var shield: float = 0.0
+
 
 func setup(stats_in: ComputedStats, team_in: Team, spawn_pos: Vector2, source_owned: OwnedUnit = null) -> void:
 	stats = stats_in
@@ -49,10 +60,40 @@ func is_alive() -> bool:
 func take_damage(amount: float) -> void:
 	if not is_alive():
 		return
-	current_hp -= amount
+	# SHIELD가 먼저 흡수.
+	var remaining: float = amount
+	if shield > 0.0:
+		var absorbed: float = min(shield, remaining)
+		shield -= absorbed
+		remaining -= absorbed
+	if remaining > 0.0:
+		current_hp -= remaining
 	damaged.emit(self, amount)
 	if current_hp <= 0.0:
 		_die()
+
+
+func effective_attack() -> float:
+	return stats.attack * (1.0 + bonus_attack_pct)
+
+
+func effective_attack_speed() -> float:
+	return stats.attack_speed * (1.0 + bonus_attack_speed_pct)
+
+
+func effective_move_speed() -> float:
+	return stats.move_speed * (1.0 + bonus_move_speed_pct)
+
+
+func effective_range() -> float:
+	return stats.attack_range * (1.0 + bonus_range_pct)
+
+
+## ratio = current_hp / stats.max_hp. HP_THRESHOLD 평가용.
+func hp_ratio() -> float:
+	if stats == null or stats.max_hp <= 0.0:
+		return 0.0
+	return current_hp / stats.max_hp
 
 
 func tick(delta: float, enemies: Array[CombatUnit], allies: Array[CombatUnit] = []) -> void:
@@ -69,17 +110,20 @@ func tick(delta: float, enemies: Array[CombatUnit], allies: Array[CombatUnit] = 
 
 	var to_target: Vector2 = target.position - position
 	var dist: float = to_target.length()
+	var eff_range: float = effective_range()
+	var eff_atkspd: float = effective_attack_speed()
+	var eff_mvspd: float = effective_move_speed()
 
-	if dist <= stats.attack_range:
+	if dist <= eff_range:
 		state = State.ATTACK
 		if _attack_cooldown <= 0.0:
-			target.take_damage(stats.attack)
-			_attack_cooldown = 1.0 / max(stats.attack_speed, 0.001)
+			target.take_damage(effective_attack())
+			_attack_cooldown = 1.0 / max(eff_atkspd, 0.001)
 	else:
 		state = State.MOVE
-		var step: float = stats.move_speed * delta
+		var step: float = eff_mvspd * delta
 		# attack_range 안쪽까지만 — target과 겹치지 않게 약간 여유 둠
-		var stop_dist: float = stats.attack_range * APPROACH_RATIO
+		var stop_dist: float = eff_range * APPROACH_RATIO
 		var travel: float = max(dist - stop_dist, 0.0)
 		var actual_step: float = min(step, travel)
 		if dist > 0.0:

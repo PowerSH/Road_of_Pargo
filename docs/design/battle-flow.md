@@ -115,8 +115,13 @@ GameState.board : BoardState  # 영구 — 전투 사이에 유지
 ### 슬롯 룰
 
 - 최대 **3개** (`MAX_ITEM_SLOTS = 3`)
-- 같은 `ItemEffect.effect_type` 룰을 여러 슬롯에 넣으면 **각 스탯 % 중 max만 적용** (합산 X)
+- 같은 `ItemEffect.effect_type` 룰을 여러 슬롯에 넣으면 **max만 적용** (합산 X) — `ItemEffectApplier.consolidate()`가 effect_type별로 `strength_score()` 최댓값 1개만 살림.
 - 다른 `effect_type`은 독립적으로 누적
+
+### 시너지 룰 — Tier 치환 (TFT 식)
+
+플레이어 `SynergyEngine`도 동일한 "그룹별 max" 패턴: 같은 `(applies_to_type, requires_adjacent_type)` 쌍의 룰 중 `min_adjacent` 가장 큰 1개만 적용. 시트의 t2/t3/t4/t5 수치는 "이 티어에서의 총 보너스".
+자세한 내용은 `synergy-axes.md` §7.
 
 ### 적용 흐름
 
@@ -146,13 +151,15 @@ EnemyStats:  Array[ComputedStats]  ← EnemySynergyEngine.compute_pre_battle() +
 CombatManager.start_battle(player_stats, enemy_stats, combat_time_rules)
 ```
 
-### CombatManager 변경점
+### CombatManager 변경점 (구현 완료 — A+B 라운드)
 
-- `start_battle` 시그니처에 `combat_time_rules: Array[EnemySynergyRule]` 추가 (DEATH_TRIGGER / HP_THRESHOLD / NUMBER_ADVANTAGE)
-- 매 틱 평가:
-  - **DEATH_TRIGGER**: `CombatUnit.died` 시그널 연결 → 적 사망 시 생존 적에게 누적 boost (상한 5중첩 권장)
-  - **HP_THRESHOLD**: `CombatUnit.damaged` 시그널 → 임계 도달 시 1회 자기 강화
-  - **NUMBER_ADVANTAGE**: 매 틱 alive count 비교 → 동적 on/off
+- `start_battle` 시그니처에 `combat_rules: Array[EnemySynergyRule] = []` 추가.
+- enemy 스폰 시 `died` / `damaged` 시그널 자동 연결.
+- **DEATH_TRIGGER**: 적 사망마다 매칭 진영 생존 적에 보너스 누적 (`DEATH_TRIGGER_CAP = 5` 중첩 상한).
+- **HP_THRESHOLD**: 데미지 받을 때 임계 체크 → 1회 자기 강화 (`_hp_threshold_fired` 사전으로 중복 방지).
+- **NUMBER_ADVANTAGE**: 매 `_process` 틱에 `_evaluate_number_advantage` → toggle (on/off 시점만 보너스 add/remove).
+- `CombatUnit`에 `bonus_*_pct` 누적기 + `effective_*()` 메서드 — `stats` 스냅샷은 불변 유지하면서 동적 보너스 합성.
+- `SHIELD`: `CombatUnit.shield` 절대값 — `take_damage` 시 우선 흡수.
 - `max_duration_sec = 120.0` (라운드 4 갱신)
 
 ### UI 컨트롤

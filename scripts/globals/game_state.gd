@@ -9,6 +9,8 @@ signal run_started
 signal run_ended(victory: bool)
 signal node_entered(index: int)
 signal board_changed
+signal chapter_advanced(new_chapter: int)
+signal run_cleared
 
 var run: RunState
 var board: BoardState
@@ -38,8 +40,25 @@ func enter_node(index: int) -> bool:
 		return false
 	if not run.enter_node(index):
 		return false
+	# 스테이지 진입 = 부상 카운트다운 1 tick. 누적 시 사망 전환.
+	run.tick_injury_countdowns()
 	node_entered.emit(index)
 	return true
+
+
+## 챕터 보스 처치 후 호출. 마지막 챕터(MAX_CHAPTER)면 run clear → end_run(true).
+## 그 외엔 다음 챕터 맵으로 갱신 + chapter_advanced 시그널.
+func advance_chapter() -> void:
+	if run == null:
+		return
+	var advanced: bool = run.advance_chapter(rng)
+	if not advanced:
+		# 최종 챕터까지 클리어 — 게임 클리어
+		run_cleared.emit()
+		end_run(true)
+		return
+	run.reveal_initial()
+	chapter_advanced.emit(run.chapter)
 
 
 ## Convenience: compute synergies for the current board with current run rules.

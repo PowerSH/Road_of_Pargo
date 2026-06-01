@@ -9,8 +9,15 @@ func _ready() -> void:
 
 
 func _on_victory_pressed() -> void:
-	print("[Boss] 승리 — 다음 거점")
-	# TODO: 챕터 카운터 증가, 다음 챕터 맵 재생성 (RunState 확장 필요)
+	# 챕터 카운터 증가 + 다음 챕터 맵 재생성.
+	# 최종 챕터(3) 클리어 시 GameState가 run_cleared 발신 + end_run(true) 처리 → run=null.
+	var prev_chapter: int = GameState.run.chapter if GameState.run != null else 0
+	GameState.advance_chapter()
+	if GameState.run == null:
+		print("[Boss] 최종 챕터 클리어 — 게임 클리어")
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+		return
+	print("[Boss] 승리 — 챕터 %d → %d, 다음 거점" % [prev_chapter, GameState.run.chapter])
 	get_tree().change_scene_to_file("res://scenes/hub_screen.tscn")
 
 

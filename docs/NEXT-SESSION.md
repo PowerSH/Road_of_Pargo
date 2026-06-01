@@ -50,6 +50,12 @@
 - **적 시스템 데이터 모델** (`EnemyUnitData`, `EnemySynergyRule`, `EncounterSlot`, `EncounterTemplate`)
 - **배틀 시스템 데이터 모델** (`OwnedUnit`, `BattleResult`, `ItemEffect`, `Settings` autoload)
 - **일일 보고서 워크플로** (`docs/daily-reports/`) + 운영 규칙 §6
+- **챕터 진행 로직** (`RunState.advance_chapter` + `GameState.advance_chapter` + boss_screen 연결)
+- **부상 카운트다운 자동 진행** (`GameState.enter_node` → `tick_injury_countdowns`)
+- **`ItemEffectApplier`** 서비스 (consolidate + apply_to_player/enemy + collect_fake_rules/temp_units/shields)
+- **적 시너지 combat-time hooks** (DEATH_TRIGGER 누적·HP_THRESHOLD 1회·NUMBER_ADVANTAGE toggle)
+- **`CombatUnit.effective_*()`** + `bonus_*_pct` 누적기 + `shield` 흡수
+- **Tier 치환 룰 명문화** (`synergy-axes.md §7`, `battle-flow.md §3`)
 
 ### ⏸ 대기 중
 
@@ -67,17 +73,13 @@
 - `id`는 비어 있으면 컨벤션(`{nation}_{class}_{NN}` 예: `ven_infantry_01`)으로 자동 부여
 - 한국어 입력 OK — 받을 때 `SynergyTypes` 상수로 매핑
 
-**B. 적재/사망 시스템 코드 구현 (디자인 확정됨, 구현 대기)**
+**B. 적재/사망 시스템 코드 구현**
 
-데이터 모델 1차 작성 완료 (`OwnedUnit`, `BattleResult`, `ItemEffect`, `Settings`).
-남은 구현 우선순위:
-1. `RunState.owned_units` 타입 마이그레이션 (`Array[UnitData]` → `Array[OwnedUnit]`)
-2. `BoardState` 셀 타입을 `OwnedUnit` 참조로 마이그레이션
-3. `CombatUnit.setup()`이 `OwnedUnit.get_starting_hp()`로 시작 HP 결정
-4. 전투 종료 시 OwnedUnit current_hp/status 기록 (CombatManager 변경)
-5. `CargoState` + `CargoItem` 기본 모델 (회전 X 단순판)
-6. 도시 액션 (부활/치료/구매/그리드 확장)
-7. `EncounterGenerator` + `EnemySynergyEngine` (pre-battle 평가)
+데이터 모델 1차 작성 + 코어 마이그레이션 + 적 엔진 + combat-time hooks 모두 완료.
+남은 우선순위:
+1. `CargoState` + `CargoItem` 모델 (회전 X 단순판부터)
+2. 도시 액션 (부활/치료/구매/그리드 확장)
+3. `Cargo↔ItemEffect` 연결 (아이템 사용 → 카고 회수)
 
 **C. 씬 내부 실제 구현 (UI 골격 완성됨, 내부 채우기)**
 
@@ -118,7 +120,7 @@
 | 인접 판정 | 8방향 |
 | 시너지 축 | 3축: 국가 / 직업 / 유형. 각 유닛은 축당 정확히 1개 태그 |
 | 시너지 발동 | "국가 유닛 입장에서 인접에 친화 태그 있으면 발동" |
-| 보너스 합산 | 같은 스탯 % 보너스는 합산 후 곱: `base * (1 + sum_of_pct)` |
+| 보너스 합산 | **Tier 치환** (TFT 식). 같은 `(applies_to_type, requires_adjacent_type)` 그룹 내 `min_adjacent` 최대 룰 1개만, 다른 그룹은 합산 후 곱 |
 | 챕터 구조 | C1 마을 / C2 도시 / C3 국가 — 3챕터 × 8/10/12 스테이지 |
 | 이벤트 종류 | 전투 / 여관 / 미니보스 / 특수 이벤트 (+ 챕터 보스) |
 | Fog of War | 도착 시 노드 종류 공개 (기본값, 재논의 가능). boss는 항상 공개 |
