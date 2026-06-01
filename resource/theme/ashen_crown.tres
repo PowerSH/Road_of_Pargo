@@ -1,0 +1,159 @@
+[gd_resource type="Theme" load_steps=10 format=3 uid="uid://cae8h0wn3p0r1"]
+
+; Ashen Crown Theme — css/theme.css 토큰을 StyleBoxFlat으로 이식.
+; 색은 0~1 float. 폰트는 이번 단계 제외 (Godot 기본 폰트 사용, 나중에 FontFile 추가).
+
+[sub_resource type="StyleBoxFlat" id="sb_panel"]
+content_margin_left = 16.0
+content_margin_top = 16.0
+content_margin_right = 16.0
+content_margin_bottom = 16.0
+bg_color = Color(0.9569, 0.9255, 0.8392, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2902, 0.2275, 0.1333, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+shadow_color = Color(0.1568, 0.1098, 0.047, 0.45)
+shadow_size = 6
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="sb_panel_sunken"]
+content_margin_left = 16.0
+content_margin_top = 16.0
+content_margin_right = 16.0
+content_margin_bottom = 16.0
+bg_color = Color(0.8706, 0.8039, 0.6431, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4314, 0.3373, 0.2039, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_normal"]
+content_margin_left = 20.0
+content_margin_top = 10.0
+content_margin_right = 20.0
+content_margin_bottom = 10.0
+bg_color = Color(0.9137, 0.8667, 0.7451, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2902, 0.2275, 0.1333, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_hover"]
+content_margin_left = 20.0
+content_margin_top = 10.0
+content_margin_right = 20.0
+content_margin_bottom = 10.0
+bg_color = Color(0.9569, 0.9255, 0.8392, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.6039, 0.1804, 0.1333, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_pressed"]
+content_margin_left = 20.0
+content_margin_top = 10.0
+content_margin_right = 20.0
+content_margin_bottom = 10.0
+bg_color = Color(0.8706, 0.8039, 0.6431, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2902, 0.2275, 0.1333, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_disabled"]
+content_margin_left = 20.0
+content_margin_top = 10.0
+content_margin_right = 20.0
+content_margin_bottom = 10.0
+bg_color = Color(0.8706, 0.8039, 0.6431, 0.6)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.7216, 0.6078, 0.4078, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="sb_btn_focus"]
+draw_center = false
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.7098, 0.5373, 0.2275, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+expand_margin_left = 2.0
+expand_margin_top = 2.0
+expand_margin_right = 2.0
+expand_margin_bottom = 2.0
+
+[sub_resource type="StyleBoxFlat" id="sb_pbar_bg"]
+bg_color = Color(0.8235, 0.7373, 0.5569, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2902, 0.2275, 0.1333, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="sb_pbar_fill"]
+bg_color = Color(0.5922, 0.1529, 0.1059, 1)
+corner_radius_top_left = 1
+corner_radius_top_right = 1
+corner_radius_bottom_right = 1
+corner_radius_bottom_left = 1
+
+[resource]
+Button/colors/font_color = Color(0.1647, 0.1255, 0.0784, 1)
+Button/colors/font_hover_color = Color(0.6039, 0.1804, 0.1333, 1)
+Button/colors/font_pressed_color = Color(0.6039, 0.1804, 0.1333, 1)
+Button/colors/font_disabled_color = Color(0.5412, 0.451, 0.3176, 1)
+Button/colors/font_focus_color = Color(0.1647, 0.1255, 0.0784, 1)
+Button/font_sizes/font_size = 16
+Button/styles/disabled = SubResource("sb_btn_disabled")
+Button/styles/focus = SubResource("sb_btn_focus")
+Button/styles/hover = SubResource("sb_btn_hover")
+Button/styles/normal = SubResource("sb_btn_normal")
+Button/styles/pressed = SubResource("sb_btn_pressed")
+Label/colors/font_color = Color(0.1647, 0.1255, 0.0784, 1)
+Label/colors/font_outline_color = Color(0.9569, 0.9255, 0.8392, 0.85)
+Label/constants/outline_size = 5
+Panel/styles/panel = SubResource("sb_panel")
+PanelContainer/styles/panel = SubResource("sb_panel")
+ProgressBar/colors/font_color = Color(0.9569, 0.9255, 0.8392, 1)
+ProgressBar/styles/background = SubResource("sb_pbar_bg")
+ProgressBar/styles/fill = SubResource("sb_pbar_fill")

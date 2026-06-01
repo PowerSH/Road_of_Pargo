@@ -14,14 +14,32 @@ const PREP_TO_BATTLE_DELAY: float = 0.5
 const RESULT_SLOWMO_DURATION: float = 1.5      # game-time 초
 const RESULT_SLOWMO_TIME_SCALE: float = 0.3
 
-# 시각 마커 크기 (CombatUnit 위에 그려지는 사각형)
-const UNIT_SIZE: Vector2 = Vector2(40, 40)
-const HP_BAR_OFFSET: Vector2 = Vector2(-20, -34)
-const HP_BAR_SIZE: Vector2 = Vector2(40, 6)
+# 전투 유닛 스프라이트 (AnimatedSprite2D). 프레임 원본 128px → 화면 표시 크기로 스케일.
+const SPRITE_FRAME_PX: float = 128.0
+## 화면 표시 크기. CombatUnit.BODY_RADIUS*2(=72px)보다 작아야 근접 시 안 겹침.
+const SPRITE_DISPLAY_PX: float = 64.0
+const SPRITE_SCALE: float = SPRITE_DISPLAY_PX / SPRITE_FRAME_PX
+const SPRITE_ANIM_FPS: float = 10.0     ## 원본 GIF가 10 FPS
+const PLAYER_SPRITE_DIR: String = "res://resource/sprites/warrior/"
+const ENEMY_SPRITE_DIR: String = "res://resource/sprites/slime/"
+## 원본 아트가 왼쪽을 보고 있으면 true. (오른쪽이 기본이면 false)
+## 동적 flip = (target이 왼쪽인가) XOR (원본이 왼쪽 향함).
+const PLAYER_SPRITE_FACES_LEFT: bool = false
+const ENEMY_SPRITE_FACES_LEFT: bool = false
 
-# PREP 그리드 셀 크기 (좌우 두 그리드 + 사이드바 다 들어가도록 컴팩트)
+# HP 바 — 얇은 ColorRect 2장(배경+채움). 스프라이트(머리) 위에 GAP만큼 띄움.
+const HP_BAR_W: float = 44.0
+const HP_BAR_H: float = 5.0
+const HP_BAR_GAP: float = 6.0  ## 스프라이트 상단과 바 하단 사이 간격
+
+# PREP 그리드 셀 크기
 const CELL_SIZE: Vector2 = Vector2(92, 58)
 const CELL_GAP: int = 3
+
+# 보관함 — 2행 × 5열 = 10칸. 미배치 유닛만 채우고 나머지는 빈 슬롯.
+const ROSTER_COLS: int = 5
+const ROSTER_MAX: int = 10
+const ROSTER_SLOT_SIZE: Vector2 = Vector2(110, 48)
 
 var phase: Phase = Phase.PREP
 
@@ -36,17 +54,22 @@ var _enemy_units_list: Array[EnemyUnitData] = []
 var _current_result: BattleResult
 
 # PREP 상태 — 사이드바에서 선택된 유닛
-var _selected_owned: OwnedUnit = null
 
 ## 사용자가 슬롯에 채워둔 ItemEffect들. 슬롯 UI는 후속 — Cargo 아이템 PR 이후 채움.
 ## 이 배열이 비어도 ITEM_APPLY 경로는 안전하게 no-op으로 동작한다.
 var _slot_items: Array[ItemEffect] = []
 # 플레이어 셀 버튼 인덱싱: Vector2i(row, col) -> Button
 var _player_cell_buttons: Dictionary = {}
-# 사이드바 버튼: OwnedUnit -> Button
+# 보관함 칩 버튼: OwnedUnit -> Button
 var _sidebar_buttons: Dictionary = {}
-# 정보 라벨 (PREP 상단)
-var _prep_info_label: Label
+# 보관함 그리드 (직접 참조 — _refresh_sidebar가 _prep_layer 의존 없이 갱신)
+var _roster_box: GridContainer
+
+# 팀별 SpriteFrames 캐시 (폴더에서 1회 빌드 후 재사용)
+var _sprite_frames_cache: Dictionary = {}  ## String dir -> SpriteFrames
+
+# 라이브 HP 바 — 매 프레임 current_hp에서 직접 갱신 (데미지/회복/초기값 모두 반영)
+var _live_bars: Array = []  ## [{unit:CombatUnit, fill:ColorRect, max_hp:float}]
 
 
 func _ready() -> void:
@@ -62,6 +85,7 @@ func _ready() -> void:
 		existing.visible = false
 
 	_ensure_test_data()
+	_evict_unfit_from_board()  # 부상/사망 유닛은 전장에서 내려 보관함으로
 	_build_layers()
 	_enter_prep()
 
@@ -71,11 +95,36 @@ func _exit_tree() -> void:
 	Engine.time_scale = 1.0
 
 
+## 전투 중 매 프레임 HP 바 갱신 — current_hp에서 직접 읽어 데미지·회복 모두 반영.
+func _process(_delta: float) -> void:
+	if phase != Phase.BATTLE:
+		return
+	for b in _live_bars:
+		var u: CombatUnit = b["unit"]
+		var fill: ColorRect = b["fill"]
+		if not is_instance_valid(u) or not is_instance_valid(fill) or not fill.visible:
+			continue
+		var ratio: float = clampf(u.current_hp / b["max_hp"], 0.0, 1.0)
+		fill.size = Vector2(HP_BAR_W * ratio, HP_BAR_H)
+
+
 # ---------- 데이터 시드 (디스크 우선, 없으면 Mock) ----------
 
 const UNITS_DIR: String = "res://resource/units/"
 const SYNERGIES_DIR: String = "res://resource/synergies/"
 const ENCOUNTERS_DIR: String = "res://resource/encounters/"
+
+
+## 보드에 배치된 유닛 중 전투 불가(부상/사망)인 것을 내려 보관함으로 돌려보낸다.
+## 전 전투에서 사망→부상 처리된 유닛이 다음 전투 전장에 다시 나오는 걸 방지.
+func _evict_unfit_from_board() -> void:
+	if GameState.board == null:
+		return
+	# iter_placed()는 스냅샷 배열이라 순회 중 제거 안전.
+	for entry in GameState.board.iter_placed():
+		var owned: OwnedUnit = entry.unit as OwnedUnit
+		if owned != null and not owned.is_deployable():
+			GameState.board.remove_unit(entry.row, entry.col)
 
 
 func _ensure_test_data() -> void:
@@ -287,80 +336,58 @@ func _build_prep_ui() -> Control:
 	root.add_child(margin)
 
 	var main_vbox := VBoxContainer.new()
-	main_vbox.add_theme_constant_override(&"separation", 10)
+	main_vbox.add_theme_constant_override(&"separation", 12)
 	margin.add_child(main_vbox)
 
-	# 상단: 정보 라벨
-	_prep_info_label = Label.new()
-	_prep_info_label.text = _prep_info_text()
-	_prep_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	main_vbox.add_child(_prep_info_label)
+	# 가운데(확장 영역): [플레이어 grid] ⚔ [적 grid] 를 화면 중앙에 정렬.
+	var center_area := CenterContainer.new()
+	center_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	center_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(center_area)
 
-	# 가운데: [플레이어 grid] ⚔ [적 grid] [보관함]
-	var center_hbox := HBoxContainer.new()
-	center_hbox.add_theme_constant_override(&"separation", 12)
-	center_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_child(center_hbox)
+	var battle_hbox := HBoxContainer.new()
+	battle_hbox.add_theme_constant_override(&"separation", 16)
+	battle_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	center_area.add_child(battle_hbox)
 
-	# 1. 플레이어 섹션 (왼쪽 진영)
+	# 플레이어 진영 (왼쪽)
 	var player_section := VBoxContainer.new()
-	player_section.add_theme_constant_override(&"separation", 4)
-	var player_label := Label.new()
-	player_label.text = "플레이어  (후열 ◀──▶ 전열)"
-	player_label.add_theme_font_size_override(&"font_size", 13)
-	player_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	player_section.add_child(player_label)
+	player_section.alignment = BoxContainer.ALIGNMENT_CENTER
 	player_section.add_child(_build_player_grid())
-	center_hbox.add_child(player_section)
+	battle_hbox.add_child(player_section)
 
-	# 2. 가운데 구분선 ⚔
+	# 가운데 구분선 ⚔
 	var divider := Label.new()
 	divider.text = "⚔"
 	divider.add_theme_font_size_override(&"font_size", 28)
 	divider.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	divider.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	center_hbox.add_child(divider)
+	battle_hbox.add_child(divider)
 
-	# 3. 적 섹션 (오른쪽 진영)
+	# 적 진영 (오른쪽)
 	var enemy_section := VBoxContainer.new()
-	enemy_section.add_theme_constant_override(&"separation", 4)
-	var enemy_label := Label.new()
-	enemy_label.text = "적군  (전열 ◀──▶ 후열)"
-	enemy_label.add_theme_font_size_override(&"font_size", 13)
-	enemy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	enemy_section.add_child(enemy_label)
+	enemy_section.alignment = BoxContainer.ALIGNMENT_CENTER
 	enemy_section.add_child(_build_enemy_grid())
-	center_hbox.add_child(enemy_section)
+	battle_hbox.add_child(enemy_section)
 
-	# 4. 보관함 사이드바
-	var sidebar_vbox := VBoxContainer.new()
-	sidebar_vbox.custom_minimum_size = Vector2(180, 0)
-	sidebar_vbox.add_theme_constant_override(&"separation", 4)
-	center_hbox.add_child(sidebar_vbox)
+	# 하단: 보관함 — 2×5 고정 그리드(10칸). 미배치 유닛만 채움.
+	var roster_label := Label.new()
+	roster_label.text = "보관함"
+	roster_label.add_theme_font_size_override(&"font_size", 13)
+	roster_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main_vbox.add_child(roster_label)
 
-	var sidebar_label := Label.new()
-	sidebar_label.text = "보관함"
-	sidebar_label.add_theme_font_size_override(&"font_size", 13)
-	sidebar_vbox.add_child(sidebar_label)
+	var roster_grid := GridContainer.new()
+	roster_grid.name = "RosterContent"
+	roster_grid.columns = ROSTER_COLS
+	roster_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	roster_grid.add_theme_constant_override(&"h_separation", 6)
+	roster_grid.add_theme_constant_override(&"v_separation", 6)
+	# 셀→보관함 드롭(회수) 드롭 타깃.
+	roster_grid.set_drag_forwarding(Callable(), _sidebar_can_drop, _sidebar_drop)
+	main_vbox.add_child(roster_grid)
+	_roster_box = roster_grid
 
-	var sidebar_scroll := ScrollContainer.new()
-	sidebar_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sidebar_vbox.add_child(sidebar_scroll)
-
-	var sidebar_content := VBoxContainer.new()
-	sidebar_content.name = "SidebarContent"
-	sidebar_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sidebar_content.add_theme_constant_override(&"separation", 3)
-	sidebar_scroll.add_child(sidebar_content)
-
-	# 하단: 안내 + 전투 시작 버튼
-	var hint := Label.new()
-	hint.text = "셀 클릭: 회수  |  사이드바 클릭 + 빈 셀: 배치  |  셀 드래그 → 빈 셀: 이동"
-	hint.add_theme_font_size_override(&"font_size", 10)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.modulate = Color(1.0, 1.0, 1.0, 0.65)
-	main_vbox.add_child(hint)
-
+	# 하단: 전투 시작 버튼
 	var start_btn := Button.new()
 	start_btn.text = "전투 시작"
 	start_btn.custom_minimum_size = Vector2(240, 50)
@@ -371,18 +398,6 @@ func _build_prep_ui() -> Control:
 	_refresh_sidebar()
 
 	return root
-
-
-func _prep_info_text() -> String:
-	var run: RunState = GameState.run
-	var player_placed: int = GameState.board.count_placed()
-	var enemy_count: int = _encounter_template.slots.size()
-	var selected_name: String = ""
-	if _selected_owned != null and _selected_owned.source != null:
-		selected_name = "   선택: %s" % _selected_owned.source.display_name
-	return "Chapter %d   Gold %d   배치 %d명   vs   적 %d명%s" % [
-		run.chapter, run.gold, player_placed, enemy_count, selected_name
-	]
 
 
 func _build_enemy_grid() -> GridContainer:
@@ -416,12 +431,9 @@ func _build_enemy_grid() -> GridContainer:
 				if unit == null and not slot.variation_pool.is_empty():
 					unit = slot.variation_pool[0]
 				if unit != null:
-					label.text = "%s\nHP %.0f / ATK %.0f" % [
-						unit.display_name, unit.max_hp, unit.attack
-					]
+					label.text = unit.display_name
 					cell.modulate = Color(1.0, 0.75, 0.75)
 			else:
-				label.text = "—"
 				cell.modulate = Color(1.0, 1.0, 1.0, 0.4)
 			cell.add_child(label)
 			grid.add_child(cell)
@@ -444,8 +456,8 @@ func _build_player_grid() -> GridContainer:
 			btn.custom_minimum_size = CELL_SIZE
 			btn.clip_text = true
 			btn.add_theme_font_size_override(&"font_size", 9)
-			btn.pressed.connect(_on_player_cell_pressed.bind(row, col))
-			# 드래그앤드롭: 빠른 클릭은 pressed 시그널 (회수), 드래그 시작 시 _drag_get
+			# 배치는 전적으로 드래그앤드롭. (클릭-선택 방식 폐기)
+			#   셀→빈 셀: 이동 / 셀→보관함: 회수 / 보관함→빈 셀: 배치
 			btn.set_drag_forwarding(
 				_cell_drag_get.bind(row, col),
 				_cell_drag_can_drop.bind(row, col),
@@ -465,149 +477,105 @@ func _refresh_player_grid() -> void:
 			var cell_val: Resource = GameState.board.get_unit(row, col)
 			var owned: OwnedUnit = cell_val as OwnedUnit
 			if owned == null or owned.source == null:
-				btn.text = "─"
+				btn.text = ""
 				btn.modulate = Color(1.0, 1.0, 1.0, 0.6)
 			else:
-				var hp: float = owned.get_starting_hp(owned.source.max_hp)
-				btn.text = "%s\nHP %.0f / %.0f" % [
-					owned.source.display_name, hp, owned.source.max_hp
-				]
+				btn.text = owned.source.display_name
 				btn.modulate = Color(0.75, 0.9, 1.0)
 
 
+## 보관함(2×5 그리드) 갱신. 배치된 유닛은 보드에 있으므로 칸을 차지하지 않는다.
+## 미배치 유닛만 채우고, 나머지는 빈 슬롯으로 10칸을 채운다.
 func _refresh_sidebar() -> void:
-	if _prep_layer == null:
+	if _roster_box == null:
 		return
-	var sidebar: Node = _prep_layer.find_child("SidebarContent", true, false)
-	if sidebar == null:
-		return
-	for child in sidebar.get_children():
+	for child in _roster_box.get_children():
 		child.queue_free()
 	_sidebar_buttons.clear()
 
-	# 배치된 OwnedUnit은 제외, 나머지를 사이드바에 표시
 	var placed_set: Dictionary = {}
 	for entry in GameState.board.iter_placed():
 		placed_set[entry.unit] = true
 
-	var shown: int = 0
+	# 미배치 유닛만.
+	var unplaced: Array[OwnedUnit] = []
 	for owned: OwnedUnit in GameState.run.owned_units:
-		if placed_set.has(owned):
-			continue
-		shown += 1
-		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(0, 54)
-		btn.clip_text = true
-		btn.add_theme_font_size_override(&"font_size", 11)
+		if not placed_set.has(owned):
+			unplaced.append(owned)
 
-		var badge: String = ""
-		var deployable: bool = true
-		match owned.status:
-			OwnedUnit.Status.READY:
-				badge = "✓"
-			OwnedUnit.Status.INJURED:
-				badge = "⚠(%d)" % owned.injured_stages_left
-				deployable = false
-			OwnedUnit.Status.DEAD:
-				badge = "☠"
-				deployable = false
-
-		var name_str: String = owned.source.display_name if owned.source else "?"
-		var max_hp: float = owned.source.max_hp if owned.source else 0.0
-		var cur_hp: float = owned.get_starting_hp(max_hp)
-		var atk: float = owned.source.attack if owned.source else 0.0
-		# 부상 유닛(current_hp == 0)도 현재값 표시 — 이전엔 max_hp만 표시했음.
-		btn.text = "%s %s\nHP %.0f / %.0f  ATK %.0f" % [badge, name_str, cur_hp, max_hp, atk]
-		btn.disabled = not deployable
-
-		if _selected_owned == owned:
-			btn.modulate = Color(0.7, 1.0, 0.7)
-
-		btn.pressed.connect(_on_sidebar_unit_pressed.bind(owned))
-		sidebar.add_child(btn)
-		_sidebar_buttons[owned] = btn
-
-	# 빈 상태 안내
-	if shown == 0:
-		var empty := Label.new()
-		empty.text = "(보관함 비어 있음)"
-		empty.add_theme_font_size_override(&"font_size", 11)
-		empty.modulate = Color(1.0, 1.0, 1.0, 0.6)
-		sidebar.add_child(empty)
-
-	_update_prep_info()
+	# 최소 10칸(2×5). 미배치가 10을 초과하면 그만큼 칸이 늘어난다.
+	var total: int = maxi(ROSTER_MAX, unplaced.size())
+	for i in total:
+		if i < unplaced.size():
+			_roster_box.add_child(_make_roster_chip(unplaced[i]))
+		else:
+			_roster_box.add_child(_make_empty_slot())
 
 
-func _update_prep_info() -> void:
-	if _prep_info_label != null:
-		_prep_info_label.text = _prep_info_text()
+## 미배치 유닛 칩 — 전투가능하면 드래그 소스, 부상/사망이면 비활성.
+func _make_roster_chip(owned: OwnedUnit) -> Button:
+	var chip := Button.new()
+	chip.custom_minimum_size = ROSTER_SLOT_SIZE
+	chip.clip_text = true
+	chip.add_theme_font_size_override(&"font_size", 11)
 
+	var badge: String = ""
+	match owned.status:
+		OwnedUnit.Status.INJURED:
+			badge = "⚠"
+		OwnedUnit.Status.DEAD:
+			badge = "☠"
+	var name_str: String = owned.source.display_name if owned.source else "?"
+	chip.text = "%s %s" % [badge, name_str] if badge != "" else name_str
 
-func _on_player_cell_pressed(row: int, col: int) -> void:
-	var cell_val: Resource = GameState.board.get_unit(row, col)
-	var existing: OwnedUnit = cell_val as OwnedUnit
-
-	if existing != null:
-		# 셀이 차 있으면 보관함으로 회수
-		GameState.board.remove_unit(row, col)
-		if _selected_owned == existing:
-			_selected_owned = null
-		_refresh_player_grid()
-		_refresh_sidebar()
-		return
-
-	# 빈 셀 — 선택된 유닛 있으면 배치
-	if _selected_owned == null:
-		return
-	if not _selected_owned.is_deployable():
-		_selected_owned = null
-		_refresh_sidebar()
-		return
-	GameState.board.place_unit(row, col, _selected_owned)
-	_selected_owned = null
-	_refresh_player_grid()
-	_refresh_sidebar()
-
-
-func _on_sidebar_unit_pressed(owned: OwnedUnit) -> void:
-	if not owned.is_deployable():
-		return
-	if _selected_owned == owned:
-		_selected_owned = null
+	if owned.is_deployable():
+		chip.set_drag_forwarding(
+			_sidebar_drag_get.bind(owned), Callable(), Callable()
+		)
 	else:
-		_selected_owned = owned
-	_refresh_sidebar()
+		chip.disabled = true
+
+	_sidebar_buttons[owned] = chip
+	return chip
 
 
-# ---------- 드래그앤드롭: 플레이어 셀 ↔ 플레이어 셀 ----------
-# Godot Control.set_drag_forwarding: callable에 (row, col) 바인딩되어 끝에 붙음.
-# 시그니처 — set_drag_forwarding의 callable은 가상 메서드와 같음:
-#   drag_get(at_pos: Vector2) -> Variant
-#   can_drop(at_pos: Vector2, data: Variant) -> bool
-#   drop(at_pos: Vector2, data: Variant) -> void
+## 빈 보관함 슬롯 — 드롭이 그리드로 통과하도록 mouse_filter=IGNORE.
+func _make_empty_slot() -> Control:
+	var slot := Panel.new()
+	slot.custom_minimum_size = ROSTER_SLOT_SIZE
+	slot.modulate = Color(1.0, 1.0, 1.0, 0.22)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return slot
 
-func _cell_drag_get(_at_pos: Vector2, row: int, col: int) -> Variant:
-	var owned: OwnedUnit = GameState.board.get_unit(row, col) as OwnedUnit
-	if owned == null:
-		return null
-	# 드래그 프리뷰 — 반투명 셀
+
+# ---------- 드래그앤드롭 (배치 전용 인터랙션) ----------
+# 페이로드: {type:"owned_unit", owned, from_row, from_col}  ← 셀 출처
+#           {type:"owned_unit", owned, from_sidebar:true}    ← 보관함 출처
+# set_drag_forwarding 콜백 시그니처:
+#   drag_get(at_pos) -> Variant / can_drop(at_pos, data) -> bool / drop(at_pos, data) -> void
+
+func _make_drag_preview(text: String) -> Control:
 	var preview := Panel.new()
 	preview.custom_minimum_size = CELL_SIZE
-	preview.modulate = Color(0.75, 0.9, 1.0, 0.85)
+	preview.modulate = Color(0.75, 0.9, 1.0, 0.9)
 	var lbl := Label.new()
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override(&"font_size", 10)
-	if owned.source != null:
-		var cur_hp: float = owned.get_starting_hp(owned.source.max_hp)
-		lbl.text = "%s\nHP %.0f / %.0f" % [owned.source.display_name, cur_hp, owned.source.max_hp]
-	else:
-		lbl.text = "?"
+	lbl.text = text
 	preview.add_child(lbl)
+	return preview
+
+
+func _cell_drag_get(_at_pos: Vector2, row: int, col: int) -> Variant:
+	var owned: OwnedUnit = GameState.board.get_unit(row, col) as OwnedUnit
+	if owned == null:
+		return null
+	var name_str: String = owned.source.display_name if owned.source else "?"
 	var src_btn: Button = _player_cell_buttons.get(Vector2i(row, col))
 	if src_btn != null:
-		src_btn.set_drag_preview(preview)
+		src_btn.set_drag_preview(_make_drag_preview(name_str))
 	return {
 		"type": "owned_unit",
 		"owned": owned,
@@ -616,15 +584,27 @@ func _cell_drag_get(_at_pos: Vector2, row: int, col: int) -> Variant:
 	}
 
 
+func _sidebar_drag_get(_at_pos: Vector2, owned: OwnedUnit) -> Variant:
+	if owned == null or not owned.is_deployable():
+		return null
+	var name_str: String = owned.source.display_name if owned.source else "?"
+	var src_btn: Button = _sidebar_buttons.get(owned)
+	if src_btn != null:
+		src_btn.set_drag_preview(_make_drag_preview(name_str))
+	return {
+		"type": "owned_unit",
+		"owned": owned,
+		"from_sidebar": true,
+	}
+
+
 func _cell_drag_can_drop(_at_pos: Vector2, data: Variant, row: int, col: int) -> bool:
-	if not (data is Dictionary):
+	if not (data is Dictionary) or data.get("type", "") != "owned_unit":
 		return false
-	if data.get("type", "") != "owned_unit":
+	# 같은 셀 = no-op
+	if data.get("from_row", -99) == row and data.get("from_col", -99) == col:
 		return false
-	# 같은 자리 = no-op
-	if data.get("from_row") == row and data.get("from_col") == col:
-		return false
-	# 빈 셀에만 드롭 가능 (스왑은 후속 작업)
+	# 빈 셀에만 (스왑은 후속)
 	return GameState.board.get_unit(row, col) == null
 
 
@@ -632,14 +612,28 @@ func _cell_drag_drop(_at_pos: Vector2, data: Variant, row: int, col: int) -> voi
 	var owned: OwnedUnit = data.get("owned") as OwnedUnit
 	if owned == null:
 		return
+	# 셀 출처면 원래 자리 비움. 보관함 출처면 비울 게 없음(배치 시 자동으로 보관함에서 빠짐).
 	var from_row: int = data.get("from_row", -1)
 	var from_col: int = data.get("from_col", -1)
 	if from_row >= 0 and from_col >= 0:
 		GameState.board.remove_unit(from_row, from_col)
 	GameState.board.place_unit(row, col, owned)
-	# 드래그 중에 선택 상태였으면 해제
-	if _selected_owned == owned:
-		_selected_owned = null
+	_refresh_player_grid()
+	_refresh_sidebar()
+
+
+## 보관함 드롭 — 보드 셀에서 끌어온 유닛을 회수 (보관함 출처는 무시).
+func _sidebar_can_drop(_at_pos: Vector2, data: Variant) -> bool:
+	if not (data is Dictionary) or data.get("type", "") != "owned_unit":
+		return false
+	return int(data.get("from_row", -1)) >= 0
+
+
+func _sidebar_drop(_at_pos: Vector2, data: Variant) -> void:
+	var from_row: int = data.get("from_row", -1)
+	var from_col: int = data.get("from_col", -1)
+	if from_row >= 0 and from_col >= 0:
+		GameState.board.remove_unit(from_row, from_col)
 	_refresh_player_grid()
 	_refresh_sidebar()
 
@@ -795,35 +789,87 @@ func _player_matches_filter(unit: CombatUnit, tag: StringName) -> bool:
 	return false
 
 
+## 폴더의 0.png..N.png 를 SpriteFrames("default" 루프 애니메이션)으로 빌드. 결과 캐시.
+func _get_sprite_frames(dir_path: String) -> SpriteFrames:
+	if _sprite_frames_cache.has(dir_path):
+		return _sprite_frames_cache[dir_path]
+	var frames := SpriteFrames.new()
+	frames.set_animation_speed(&"default", SPRITE_ANIM_FPS)
+	frames.set_animation_loop(&"default", true)
+	var i: int = 0
+	while true:
+		var p: String = "%s%d.png" % [dir_path, i]
+		if not ResourceLoader.exists(p):
+			break
+		var tex: Texture2D = load(p) as Texture2D
+		if tex == null:
+			break
+		frames.add_frame(&"default", tex)
+		i += 1
+	_sprite_frames_cache[dir_path] = frames
+	return frames
+
+
 func _on_unit_spawned(unit: CombatUnit) -> void:
-	# 시각 마커: 사각형 (팀 색상) + HP 바
-	var color_rect := ColorRect.new()
-	color_rect.size = UNIT_SIZE
-	color_rect.position = -UNIT_SIZE * 0.5
-	color_rect.color = Color.SKY_BLUE if unit.team == CombatUnit.Team.PLAYER else Color.INDIAN_RED
-	color_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	color_rect.name = "Marker"
-	unit.add_child(color_rect)
+	# 시각: 애니메이션 스프라이트 (플레이어=전사 / 적=슬라임)
+	var dir_path: String = PLAYER_SPRITE_DIR if unit.team == CombatUnit.Team.PLAYER else ENEMY_SPRITE_DIR
+	var is_player: bool = unit.team == CombatUnit.Team.PLAYER
+	var sprite := AnimatedSprite2D.new()
+	sprite.name = "Sprite"
+	sprite.sprite_frames = _get_sprite_frames(dir_path)
+	sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # 픽셀아트 크리스프
+	if sprite.sprite_frames.get_frame_count(&"default") > 0:
+		sprite.play(&"default")
+	unit.add_child(sprite)
 
-	var hp_bar := ProgressBar.new()
-	hp_bar.size = HP_BAR_SIZE
-	hp_bar.position = HP_BAR_OFFSET
-	hp_bar.max_value = unit.stats.max_hp
-	hp_bar.value = unit.current_hp
-	hp_bar.show_percentage = false
-	hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_bar.name = "HpBar"
-	# Settings에 따라 ON_HOVER 모드는 평소 숨김 (후속 단계에서 마우스 hover 연동)
-	if Settings.hp_bar_mode == Settings.HpBarMode.ON_HOVER:
-		hp_bar.visible = false
-	unit.add_child(hp_bar)
-
-	unit.damaged.connect(func(u: CombatUnit, _amt: float) -> void:
-		hp_bar.value = u.current_hp
+	# 방향: 초기엔 상대 진영을 향하고, 이후 이동 방향(target)에 맞춰 동적 갱신.
+	var base_left: bool = PLAYER_SPRITE_FACES_LEFT if is_player else ENEMY_SPRITE_FACES_LEFT
+	var init_face_left: bool = not is_player  # 플레이어는 오른쪽, 적은 왼쪽을 봄
+	sprite.flip_h = (init_face_left != base_left)
+	unit.facing_changed.connect(func(face_left: bool) -> void:
+		sprite.flip_h = (face_left != base_left)
 	)
+
+	# HP 바 — ColorRect 2장. 스프라이트 상단(= -SPRITE_DISPLAY_PX/2) 위로 띄움.
+	var sprite_half: float = SPRITE_DISPLAY_PX * 0.5
+	var bar_top: float = -sprite_half - HP_BAR_GAP - HP_BAR_H
+	var bar_pos := Vector2(-HP_BAR_W * 0.5, bar_top)
+
+	var hp_bg := ColorRect.new()
+	hp_bg.name = "HpBg"
+	hp_bg.size = Vector2(HP_BAR_W, HP_BAR_H)
+	hp_bg.position = bar_pos
+	hp_bg.color = Color(0.06, 0.04, 0.03, 0.7)
+	hp_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	unit.add_child(hp_bg)
+
+	var max_hp: float = maxf(unit.stats.max_hp, 0.001)
+	# 초기 채움 = 현재 HP 비율. carry-over로 깎인 HP가 전투 시작 시 바에 반영됨.
+	# (이전엔 항상 풀 너비로 만들고 damaged 때만 줄여서, 깎인 채 시작해도 꽉 차 보였음)
+	var init_ratio: float = clampf(unit.current_hp / max_hp, 0.0, 1.0)
+
+	var hp_fill := ColorRect.new()
+	hp_fill.name = "HpFill"
+	hp_fill.size = Vector2(HP_BAR_W * init_ratio, HP_BAR_H)
+	hp_fill.position = bar_pos
+	hp_fill.color = Color(0.42, 0.62, 0.30) if unit.team == CombatUnit.Team.PLAYER else Color(0.78, 0.20, 0.16)
+	hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	unit.add_child(hp_fill)
+
+	# Settings: ON_HOVER 모드는 평소 숨김 (hover 연동은 후속)
+	if Settings.hp_bar_mode == Settings.HpBarMode.ON_HOVER:
+		hp_bg.visible = false
+		hp_fill.visible = false
+
+	# 매 프레임 갱신 대상으로 등록 (damaged 신호에 의존하지 않음 — 회복도 반영).
+	_live_bars.append({"unit": unit, "fill": hp_fill, "max_hp": max_hp})
+
 	unit.died.connect(func(_u: CombatUnit) -> void:
-		color_rect.modulate.a = 0.2
-		hp_bar.visible = false
+		sprite.modulate.a = 0.25
+		sprite.stop()
+		hp_bg.visible = false
+		hp_fill.visible = false
 	)
 
 

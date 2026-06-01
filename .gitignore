@@ -37,3 +37,6 @@ export/
 # Python
 __pycache__/
 *.pyc
+
+# UI 키트 디자인 레퍼런스 (게임 실행과 무관 — 필요 시 수동 추적)
+asset/component/

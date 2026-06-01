@@ -45,10 +45,11 @@ var _number_advantage_active: Dictionary = {}  ## StringName rule_id -> bool
 
 
 ## 그리드 → 전장 좌표 매핑 상수.
-## 전열(col 0)은 중앙에 가깝게, 후열(col 4)은 진영 끝으로.
-const GRID_COL_STEP: float = 100.0
+## 전열(col 0)은 중앙에서 FRONT_OFFSET만큼, 후열(col 4)은 진영 끝으로.
+## FRONT_OFFSET이 양 진영 전열 사이 간격의 절반 — 240이면 전열끼리 480px 떨어져 시작.
+const GRID_COL_STEP: float = 80.0
 const GRID_ROW_STEP: float = 100.0
-const GRID_FRONT_OFFSET: float = 60.0
+const GRID_FRONT_OFFSET: float = 240.0
 
 ## player_owned는 player_stats와 parallel — same index가 같은 유닛.
 ## player_grid / enemy_grid: BoardState의 Vector2i(row, col) 위치. 비어 있으면

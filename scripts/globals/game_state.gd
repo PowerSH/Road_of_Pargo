@@ -16,6 +16,17 @@ const UNITS_DIR: String = "res://resource/units/"
 const SYNERGIES_DIR: String = "res://resource/synergies/"
 const SAVE_PATH: String = "user://run.tres"
 
+## 새 런 기본 로스터 — 벤 군인 보병 4기(전열) + 아르덴 군인 궁병 3기(후열).
+const DEFAULT_INFANTRY_PATH: String = "res://resource/units/ven_infantry_soldier.tres"
+const DEFAULT_ARCHER_PATH: String = "res://resource/units/arden_archer_soldier.tres"
+## 전열(근접) 셀과 후열(원거리) 셀.
+const FRONT_CELLS: Array[Vector2i] = [
+	Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(1, 1)
+]
+const BACK_CELLS: Array[Vector2i] = [
+	Vector2i(0, 3), Vector2i(1, 3), Vector2i(2, 3)
+]
+
 var run: RunState
 var board: BoardState
 var rng := RandomNumberGenerator.new()
@@ -31,33 +42,46 @@ func start_new_run() -> void:
 	run.nodes = MapGenerator.generate(rng, RunState.get_chapter_pattern(run.chapter))
 	run.reveal_initial()
 	board = BoardState.new()
-	# 디스크 카탈로그 일괄 영입 + 활성 시너지 룰 셋업.
-	# battle_screen 진입 시점이 아니라 런 시작 시점에 자동으로 채움.
-	_load_initial_units_from_disk()
+	# 기본 로스터 7기를 영입 + 보드에 자동 배치 (보관함은 비어 있음).
+	# 추가 유닛은 거점의 "용병 고용"으로 영입.
+	_seed_default_roster()
 	_load_active_synergies_from_disk()
 	run_started.emit()
 
 
-## resource/units/*.tres → run.owned_units 일괄 영입.
-func _load_initial_units_from_disk() -> int:
-	if run == null:
-		return 0
+## 새 런 기본 편성: 보병 4기 전열 + 궁병 3기 후열. 모두 보드에 배치 → 보관함 빈 상태.
+func _seed_default_roster() -> void:
+	if run == null or board == null:
+		return
+	var infantry: UnitData = load(DEFAULT_INFANTRY_PATH) as UnitData
+	var archer: UnitData = load(DEFAULT_ARCHER_PATH) as UnitData
+	if infantry != null:
+		for p: Vector2i in FRONT_CELLS:
+			var ow: OwnedUnit = run.add_unit_data(infantry)
+			board.place_unit(p.x, p.y, ow)
+	if archer != null:
+		for p: Vector2i in BACK_CELLS:
+			var ow: OwnedUnit = run.add_unit_data(archer)
+			board.place_unit(p.x, p.y, ow)
+	print("[GameState] seeded default roster: 4 infantry (front) + 3 archer (back)")
+
+
+## resource/units/*.tres 전체를 UnitData 배열로 로드 (용병 고용 풀 등에 사용).
+## run에 영입하지 않고 카탈로그만 반환.
+func load_unit_catalog() -> Array[UnitData]:
+	var out: Array[UnitData] = []
 	var dir: DirAccess = DirAccess.open(UNITS_DIR)
 	if dir == null:
-		return 0
-	var count: int = 0
+		return out
 	dir.list_dir_begin()
 	var fname: String = dir.get_next()
 	while fname != "":
 		if not dir.current_is_dir() and fname.ends_with(".tres"):
 			var res: Resource = load(UNITS_DIR + fname)
 			if res is UnitData:
-				run.add_unit_data(res)
-				count += 1
+				out.append(res)
 		fname = dir.get_next()
-	if count > 0:
-		print("[GameState] loaded %d UnitData → owned_units" % count)
-	return count
+	return out
 
 
 ## resource/synergies/*.tres → run.active_rules.

@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://wg32fng7ndpu"
+
+[deps]
+
+files=["res://docs/balance/2026-06-01-synergies.applies.translation", "res://docs/balance/2026-06-01-synergies.requires.translation", "res://docs/balance/2026-06-01-synergies.min.translation", "res://docs/balance/2026-06-01-synergies.atk%.translation", "res://docs/balance/2026-06-01-synergies.hp%.translation", "res://docs/balance/2026-06-01-synergies.as%.translation", "res://docs/balance/2026-06-01-synergies.ms%.translation", "res://docs/balance/2026-06-01-synergies.rng%.translation"]
+
+source_file="res://docs/balance/2026-06-01-synergies.csv"
+dest_files=["res://docs/balance/2026-06-01-synergies.applies.translation", "res://docs/balance/2026-06-01-synergies.requires.translation", "res://docs/balance/2026-06-01-synergies.min.translation", "res://docs/balance/2026-06-01-synergies.atk%.translation", "res://docs/balance/2026-06-01-synergies.hp%.translation", "res://docs/balance/2026-06-01-synergies.as%.translation", "res://docs/balance/2026-06-01-synergies.ms%.translation", "res://docs/balance/2026-06-01-synergies.rng%.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://b2f6s18trbaei"
+
+[deps]
+
+files=["res://docs/balance/2026-06-01-encounters.display.translation", "res://docs/balance/2026-06-01-encounters.enemy.translation", "res://docs/balance/2026-06-01-encounters.total.translation"]
+
+source_file="res://docs/balance/2026-06-01-encounters.csv"
+dest_files=["res://docs/balance/2026-06-01-encounters.display.translation", "res://docs/balance/2026-06-01-encounters.enemy.translation", "res://docs/balance/2026-06-01-encounters.total.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

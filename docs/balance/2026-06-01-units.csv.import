@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://6a6b4u7wmj68"
+
+[deps]
+
+files=["res://docs/balance/2026-06-01-units.display.translation", "res://docs/balance/2026-06-01-units.nation.translation", "res://docs/balance/2026-06-01-units.class.translation", "res://docs/balance/2026-06-01-units.type.translation", "res://docs/balance/2026-06-01-units.max.translation", "res://docs/balance/2026-06-01-units.attack.translation", "res://docs/balance/2026-06-01-units.attack.translation", "res://docs/balance/2026-06-01-units.attack.translation", "res://docs/balance/2026-06-01-units.move.translation", "res://docs/balance/2026-06-01-units.cost.translation", "res://docs/balance/2026-06-01-units.tier.translation", "res://docs/balance/2026-06-01-units.power.translation"]
+
+source_file="res://docs/balance/2026-06-01-units.csv"
+dest_files=["res://docs/balance/2026-06-01-units.display.translation", "res://docs/balance/2026-06-01-units.nation.translation", "res://docs/balance/2026-06-01-units.class.translation", "res://docs/balance/2026-06-01-units.type.translation", "res://docs/balance/2026-06-01-units.max.translation", "res://docs/balance/2026-06-01-units.attack.translation", "res://docs/balance/2026-06-01-units.attack.translation", "res://docs/balance/2026-06-01-units.attack.translation", "res://docs/balance/2026-06-01-units.move.translation", "res://docs/balance/2026-06-01-units.cost.translation", "res://docs/balance/2026-06-01-units.tier.translation", "res://docs/balance/2026-06-01-units.power.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

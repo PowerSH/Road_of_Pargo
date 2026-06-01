@@ -9,11 +9,17 @@ enum State { SEARCH, MOVE, ATTACK, DEAD }
 
 signal died(unit: CombatUnit)
 signal damaged(unit: CombatUnit, amount: float)
+## 바라보는 방향이 바뀔 때 emit. UI 레이어가 스프라이트 flip_h 갱신에 사용.
+signal facing_changed(face_left: bool)
 
-## 동맹 분리 — 같은 팀 유닛끼리 너무 가까우면 밀어냄 (visual + 게임플레이 둘 다).
-const SEPARATION_RADIUS: float = 50.0
-const SEPARATION_STRENGTH: float = 80.0
-## 공격 거리의 이 비율까지만 접근 — 적과 겹치지 않게.
+## 유닛 몸체 반경 — 겹침 방지의 기준. 두 유닛은 중심 간 거리가 2*BODY_RADIUS
+## 이상이 되도록 떨어진다 (같은 팀 분리 + 적 근접 정지 모두에 사용).
+## 스프라이트 표시 크기는 이 지름(72px)보다 작아야 시각적으로 안 겹친다.
+const BODY_RADIUS: float = 36.0
+## 동맹 분리 — 같은 팀 유닛끼리 너무 가까우면 밀어냄.
+const SEPARATION_RADIUS: float = 76.0
+const SEPARATION_STRENGTH: float = 120.0
+## 공격 거리의 이 비율까지만 접근. 단, 몸체 지름(2*BODY_RADIUS)보다 가깝겐 안 감.
 const APPROACH_RATIO: float = 0.9
 ## defense의 절대 상한 — 무적 방지. 1.0 이상이면 데미지 음수 가능.
 const DEFENSE_CAP: float = 0.95
@@ -40,6 +46,9 @@ var bonus_range_pct: float = 0.0
 
 ## ItemEffect.SHIELD에서 부여되는 절대값 보호막. 데미지를 먼저 흡수.
 var shield: float = 0.0
+
+## 현재 바라보는 방향 (true=왼쪽). target 방향으로 갱신, 바뀔 때만 facing_changed emit.
+var _face_left: bool = false
 
 
 func setup(stats_in: ComputedStats, team_in: Team, spawn_pos: Vector2, source_owned: OwnedUnit = null) -> void:
@@ -127,11 +136,20 @@ func tick(delta: float, enemies: Array[CombatUnit], allies: Array[CombatUnit] = 
 
 	var to_target: Vector2 = target.position - position
 	var dist: float = to_target.length()
+
+	# 바라보는 방향 — target 쪽으로. 바뀔 때만 신호.
+	var want_left: bool = to_target.x < 0.0
+	if want_left != _face_left:
+		_face_left = want_left
+		facing_changed.emit(_face_left)
+
 	var eff_range: float = effective_range()
 	var eff_atkspd: float = effective_attack_speed()
 	var eff_mvspd: float = effective_move_speed()
 
 	if dist <= eff_range:
+		# 공격 상태 — 완전 정지. 이동도, 동맹 분리 밀침도 적용하지 않는다.
+		# "멈춰서 공격" — 움직이면서 공격하지 않는다.
 		state = State.ATTACK
 		if _attack_cooldown <= 0.0:
 			_perform_attack(target)
@@ -139,16 +157,17 @@ func tick(delta: float, enemies: Array[CombatUnit], allies: Array[CombatUnit] = 
 	else:
 		state = State.MOVE
 		var step: float = eff_mvspd * delta
-		# attack_range 안쪽까지만 — target과 겹치지 않게 약간 여유 둠
-		var stop_dist: float = eff_range * APPROACH_RATIO
+		# 정지 거리: 사정거리의 APPROACH_RATIO. 단 몸체가 겹치지 않게 2*BODY_RADIUS 이상 유지.
+		# (근접 사정거리가 몸체 지름보다 작으면 사정거리 끝에서 멈춤 — 그래야 공격은 됨)
+		var min_clear: float = minf(2.0 * BODY_RADIUS, eff_range)
+		var stop_dist: float = maxf(eff_range * APPROACH_RATIO, min_clear)
 		var travel: float = max(dist - stop_dist, 0.0)
 		var actual_step: float = min(step, travel)
 		if dist > 0.0:
 			position += to_target / dist * actual_step
-
-	# 동맹 분리 — 같은 팀끼리 SEPARATION_RADIUS 안에 들어오면 서로 밀어냄.
-	# MOVE/ATTACK 둘 다 적용 (같은 적을 공격하는 여러 동맹이 한 점에 안 모이도록).
-	_apply_separation(allies, delta)
+		# 동맹 분리는 이동 중(MOVE)에만 — 같은 적을 향해 다가가는 동맹들이 한 점에 안 모이게.
+		# 공격 중인 유닛은 밀리지 않으므로, 이동 중인 동맹이 알아서 비켜간다.
+		_apply_separation(allies, delta)
 
 
 ## 한 번의 공격 데미지 산출 + 적용 + lifesteal.
