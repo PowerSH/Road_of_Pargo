@@ -20,6 +20,9 @@ var owned_units: Array[OwnedUnit] = []
 ## Synergy rules currently in effect. Events / relics can mutate this mid-run.
 var active_rules: Array[SynergyRule] = []
 
+## 상단의 적재함. cargo-and-mortality.md §1 — 초기 4×3, 도시에서 확장 구매 가능.
+var cargo: CargoState = CargoState.new()
+
 ## Current chapter (1=마을 / 2=도시 / 3=국가). progression.md §1 참조.
 ## 부상 카운트다운 초기값과 적군 power target 계산에 사용.
 var chapter: int = 1
@@ -72,11 +75,28 @@ func tick_injury_countdowns() -> void:
 ## 그 외엔 chapter 증가 + 새 맵 + 노드 초기화 + boss 공개. true 반환.
 const MAX_CHAPTER: int = 3
 
+## 챕터별 lanes_per_depth 패턴. progression.md §5 — 후반일수록 길고 갈래 多.
+## MapGenerator가 첫/마지막 lane을 1로 강제하므로 단일 시작·보스 보장.
+const CHAPTER_PATTERNS: Dictionary = {
+	1: [1, 2, 1, 3, 2, 1],
+	2: [1, 2, 3, 2, 3, 2, 1],
+	3: [1, 2, 3, 3, 2, 3, 2, 1],
+}
+
+
+static func get_chapter_pattern(c: int) -> Array[int]:
+	var raw: Variant = CHAPTER_PATTERNS.get(c, CHAPTER_PATTERNS[1])
+	var typed: Array[int] = []
+	for v in raw:
+		typed.append(int(v))
+	return typed
+
+
 func advance_chapter(rng: RandomNumberGenerator) -> bool:
 	if chapter >= MAX_CHAPTER:
 		return false
 	chapter += 1
-	nodes = MapGenerator.generate(rng)
+	nodes = MapGenerator.generate(rng, get_chapter_pattern(chapter))
 	current_node_index = -1
 	revealed_nodes.clear()
 	# reveal_initial은 GameState에서 별도 호출. 여기서는 노드만 갈아치움.

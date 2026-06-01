@@ -12,6 +12,9 @@ signal board_changed
 signal chapter_advanced(new_chapter: int)
 signal run_cleared
 
+const UNITS_DIR: String = "res://resource/units/"
+const SYNERGIES_DIR: String = "res://resource/synergies/"
+
 var run: RunState
 var board: BoardState
 var rng := RandomNumberGenerator.new()
@@ -23,10 +26,59 @@ func _ready() -> void:
 
 func start_new_run() -> void:
 	run = RunState.new()
-	run.nodes = MapGenerator.generate(rng)
+	# 챕터 1 패턴으로 초기 맵 생성 (RunState.chapter는 1로 기본 설정됨).
+	run.nodes = MapGenerator.generate(rng, RunState.get_chapter_pattern(run.chapter))
 	run.reveal_initial()
 	board = BoardState.new()
+	# 디스크 카탈로그 일괄 영입 + 활성 시너지 룰 셋업.
+	# battle_screen 진입 시점이 아니라 런 시작 시점에 자동으로 채움.
+	_load_initial_units_from_disk()
+	_load_active_synergies_from_disk()
 	run_started.emit()
+
+
+## resource/units/*.tres → run.owned_units 일괄 영입.
+func _load_initial_units_from_disk() -> int:
+	if run == null:
+		return 0
+	var dir: DirAccess = DirAccess.open(UNITS_DIR)
+	if dir == null:
+		return 0
+	var count: int = 0
+	dir.list_dir_begin()
+	var fname: String = dir.get_next()
+	while fname != "":
+		if not dir.current_is_dir() and fname.ends_with(".tres"):
+			var res: Resource = load(UNITS_DIR + fname)
+			if res is UnitData:
+				run.add_unit_data(res)
+				count += 1
+		fname = dir.get_next()
+	if count > 0:
+		print("[GameState] loaded %d UnitData → owned_units" % count)
+	return count
+
+
+## resource/synergies/*.tres → run.active_rules.
+func _load_active_synergies_from_disk() -> int:
+	if run == null:
+		return 0
+	var dir: DirAccess = DirAccess.open(SYNERGIES_DIR)
+	if dir == null:
+		return 0
+	var rules: Array[SynergyRule] = []
+	dir.list_dir_begin()
+	var fname: String = dir.get_next()
+	while fname != "":
+		if not dir.current_is_dir() and fname.ends_with(".tres"):
+			var res: Resource = load(SYNERGIES_DIR + fname)
+			if res is SynergyRule:
+				rules.append(res)
+		fname = dir.get_next()
+	run.active_rules = rules
+	if not rules.is_empty():
+		print("[GameState] loaded %d SynergyRule → active_rules" % rules.size())
+	return rules.size()
 
 
 func end_run(victory: bool) -> void:

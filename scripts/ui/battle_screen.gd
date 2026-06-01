@@ -75,25 +75,28 @@ const ENCOUNTERS_DIR: String = "res://resource/encounters/"
 
 
 func _ensure_test_data() -> void:
-	# 1. 유닛 — owned_units가 비어 있을 때만
+	# GameState.start_new_run이 owned_units / active_rules를 디스크에서 미리 채움.
+	# 여기는 안전망 — start_new_run을 거치지 않은 진입(직접 battle_screen 띄우는 디버그 등) 대비.
+
+	# 1. 유닛 — 여전히 비어 있으면 디스크 → mock 순서로 시도.
 	if GameState.run.owned_units.is_empty():
 		var loaded: int = _seed_from_disk()
 		if loaded == 0:
 			print("[BattleScreen] no units on disk — falling back to mock")
 			_seed_mock_player_units()
 		else:
-			print("[BattleScreen] loaded %d units from %s" % [loaded, UNITS_DIR])
+			print("[BattleScreen] safety net loaded %d units from disk" % loaded)
 
 	# 2. 보드 자동 배치
 	if GameState.board.count_placed() == 0 and not GameState.run.owned_units.is_empty():
 		_auto_place_owned_units()
 
-	# 3. 시너지 룰 — active_rules가 비어 있을 때만
+	# 3. 시너지 룰 안전망 — active_rules가 여전히 비어 있을 때만.
 	if GameState.run.active_rules.is_empty():
 		var rules: Array[SynergyRule] = _load_synergies_from_disk()
 		if not rules.is_empty():
 			GameState.run.active_rules = rules
-			print("[BattleScreen] loaded %d synergy rules" % rules.size())
+			print("[BattleScreen] safety net loaded %d synergy rules" % rules.size())
 
 	# 4. 적 인카운터 — 디스크 우선, 없으면 mock
 	_encounter_template = _load_encounter_from_disk()
