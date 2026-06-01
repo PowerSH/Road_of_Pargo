@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemySynergyRule" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://dlramilp7tvl" path="res://scripts/data/enemy_synergy_rule.gd" id="1_es"]
+
+[resource]
+script = ExtResource("1_es")
+id = &"en_syn_chief_aura"
+display_name = "두목 오라"
+description = "산적 두목 인접 부하 공속 +50%"
+effect_type = 1
+trigger_faction = &"bandit"
+trigger_count = 1
+hp_threshold = 0.0
+attack_bonus_pct = 0.0
+hp_bonus_pct = 0.0
+attack_speed_bonus_pct = 0.5
+move_speed_bonus_pct = 0.0
+range_bonus_pct = 0.0

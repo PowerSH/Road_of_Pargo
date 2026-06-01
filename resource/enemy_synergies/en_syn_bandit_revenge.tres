@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemySynergyRule" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://dlramilp7tvl" path="res://scripts/data/enemy_synergy_rule.gd" id="1_es"]
+
+[resource]
+script = ExtResource("1_es")
+id = &"en_syn_bandit_revenge"
+display_name = "복수의 산적"
+description = "동료 사망 시 생존 산적 atk +10% (중첩, 상한 5)"
+effect_type = 2
+trigger_faction = &"bandit"
+trigger_count = 1
+hp_threshold = 0.0
+attack_bonus_pct = 0.1
+hp_bonus_pct = 0.0
+attack_speed_bonus_pct = 0.0
+move_speed_bonus_pct = 0.0
+range_bonus_pct = 0.0

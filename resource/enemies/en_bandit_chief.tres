@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EnemyUnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://r738wnf22nyt" path="res://scripts/data/enemy_unit_data.gd" id="1_eu"]
+
+[resource]
+script = ExtResource("1_eu")
+id = &"en_bandit_chief"
+display_name = "산적 두목"
+max_hp = 280.0
+attack = 22.0
+attack_speed = 1.0
+attack_range = 70.0
+move_speed = 100.0
+faction_tags = Array[StringName]([&"bandit"])
+is_boss = true

@@ -115,13 +115,29 @@ power_score = max_hp * 0.4
 
 밸런싱 시 계수 조정. EnemyUnitData에 `compute_power_score()` 메서드로 노출.
 
-### 챕터별 target power (1차 가이드라인)
+### 챕터별 target power (2차 가이드라인 — 2026-06-01 갱신)
+
+> 1차 mock 단계 가이드라인(BATTLE 100 / ELITE 160 / BOSS 220)은 실제 플레이어 유닛 카탈로그 도착 전 가정. 실제 `UnitData.compute_power_score` 측정 결과 플레이어 유닛 1명당 power 150-200 / 평균 빌드(5-6명)당 800-1200. 적군 총 power가 플레이어의 50-70% 수준이 되어야 자연스러운 난이도.
 
 | 노드 | C1 | C2 | C3 |
 |---|---|---|---|
-| BATTLE (일반) | 100 | 180 | 320 |
-| ELITE (미니보스) | 160 | 290 | 520 |
-| BOSS (챕터 보스) | 220 | 400 | 740 |
+| BATTLE (일반) | **500** | 900 | 1600 |
+| ELITE (미니보스) | **800** | 1500 | 2700 |
+| BOSS (챕터 보스) | **1100** | 2000 | 3800 |
+
+C1 실제 인카운터 (`sheet/Tier1_sheet.xlsx` → `resource/encounters/`):
+
+| id | kind | 구성 | 실측 power |
+|---|---|---|---|
+| t1_bandit_patrol | BATTLE | 졸병 3 + 궁수 1 | ~500 |
+| t1_bandit_ambush | BATTLE | 졸병 2 + 궁수 2 | ~517 |
+| t1_wolf_pack | BATTLE | 늑대 3 | ~433 |
+| t1_bear_territory | BATTLE | 곰 1 + 늑대 2 | ~497 |
+| t1_bandit_camp | ELITE | 숙련공 3 + 궁수 2 | ~770 |
+| t1_alpha_pack | ELITE | 알파 + 늑대 2 + 곰 | ~733 |
+| t1_bandit_lair | BOSS | 두목 + 숙련공 3 + 궁수 2 | ~1023 |
+
+C2/C3 target은 1차 추정 (실제 인카운터 작성 시 재측정 필요).
 
 이 값은 `EncounterTemplate.power_target_override` 또는 generator의 챕터 곱셈을 통해 적용. progression.md §4의 챕터 배수 (1.0 / 1.6 / 2.8)와 결과적으로 같은 곡선이 되도록 조정.
 

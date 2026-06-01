@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemySynergyRule" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://dlramilp7tvl" path="res://scripts/data/enemy_synergy_rule.gd" id="1_es"]
+
+[resource]
+script = ExtResource("1_es")
+id = &"en_syn_outnumber"
+display_name = "수세의 압박"
+description = "적이 플레이어보다 2명+ 많으면 mvspd +25%"
+effect_type = 4
+trigger_faction = &""
+trigger_count = 2
+hp_threshold = 0.0
+attack_bonus_pct = 0.0
+hp_bonus_pct = 0.0
+attack_speed_bonus_pct = 0.0
+move_speed_bonus_pct = 0.25
+range_bonus_pct = 0.0

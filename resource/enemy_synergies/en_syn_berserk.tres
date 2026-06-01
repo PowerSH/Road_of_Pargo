@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemySynergyRule" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://dlramilp7tvl" path="res://scripts/data/enemy_synergy_rule.gd" id="1_es"]
+
+[resource]
+script = ExtResource("1_es")
+id = &"en_syn_berserk"
+display_name = "광폭화"
+description = "자기 HP ≤40% 시 atk +30%, atkspd +20%"
+effect_type = 3
+trigger_faction = &""
+trigger_count = 1
+hp_threshold = 0.4
+attack_bonus_pct = 0.3
+hp_bonus_pct = 0.0
+attack_speed_bonus_pct = 0.2
+move_speed_bonus_pct = 0.0
+range_bonus_pct = 0.0

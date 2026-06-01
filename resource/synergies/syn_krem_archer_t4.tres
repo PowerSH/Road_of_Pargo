@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="SynergyRule" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://dh14thnp7fdr8" path="res://scripts/data/synergy_rule.gd" id="1_syn"]
+
+[resource]
+script = ExtResource("1_syn")
+id = &"syn_krem_archer_t4"
+display_name = "크렘+궁병 T4"
+description = "크렘 궁병이 인접했을 때 발동"
+applies_to_type = &"nation_krem"
+requires_adjacent_type = &"class_archer"
+min_adjacent = 4
+attack_bonus_pct = 0.2
+hp_bonus_pct = 0.0
+attack_speed_bonus_pct = 0.6
+move_speed_bonus_pct = 0.0
+range_bonus_pct = 0.3

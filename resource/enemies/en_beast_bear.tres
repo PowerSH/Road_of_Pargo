@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EnemyUnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://r738wnf22nyt" path="res://scripts/data/enemy_unit_data.gd" id="1_eu"]
+
+[resource]
+script = ExtResource("1_eu")
+id = &"en_beast_bear"
+display_name = "곰"
+max_hp = 250.0
+attack = 24.0
+attack_speed = 0.7
+attack_range = 60.0
+move_speed = 95.0
+faction_tags = Array[StringName]([&"beast"])
+is_boss = false

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="EnemyUnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://r738wnf22nyt" path="res://scripts/data/enemy_unit_data.gd" id="1_eu"]
+
+[resource]
+script = ExtResource("1_eu")
+id = &"en_beast_alpha"
+display_name = "우두머리 늑대"
+max_hp = 200.0
+attack = 22.0
+attack_speed = 1.1
+attack_range = 55.0
+move_speed = 160.0
+faction_tags = Array[StringName]([&"beast"])
+is_boss = true

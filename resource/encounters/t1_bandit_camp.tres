@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="EncounterTemplate" load_steps=13 format=3]
+
+[ext_resource type="Script" uid="uid://nisd8sfxcxx1" path="res://scripts/data/encounter_slot.gd" id="1_sl_script"]
+[ext_resource type="Script" uid="uid://dbypymtf71qf8" path="res://scripts/data/encounter_template.gd" id="2_et_script"]
+[ext_resource type="Resource" path="res://resource/enemies/en_bandit_veteran.tres" id="3_u"]
+[ext_resource type="Resource" path="res://resource/enemies/en_bandit_archer.tres" id="4_u"]
+[ext_resource type="Resource" path="res://resource/enemy_synergies/en_syn_bandit_horde.tres" id="5_r"]
+[ext_resource type="Resource" path="res://resource/enemy_synergies/en_syn_chief_aura.tres" id="6_r"]
+[ext_resource type="Resource" path="res://resource/enemy_synergies/en_syn_bandit_revenge.tres" id="7_r"]
+
+[sub_resource type="Resource" id="Resource_slot_0"]
+script = ExtResource("1_sl_script")
+row = 0
+col = 0
+fixed_unit = ExtResource("3_u")
+variation_pool = Array[Resource]([])
+optional = false
+skip_chance = 0.0
+
+[sub_resource type="Resource" id="Resource_slot_1"]
+script = ExtResource("1_sl_script")
+row = 1
+col = 0
+fixed_unit = ExtResource("3_u")
+variation_pool = Array[Resource]([])
+optional = false
+skip_chance = 0.0
+
+[sub_resource type="Resource" id="Resource_slot_2"]
+script = ExtResource("1_sl_script")
+row = 2
+col = 0
+fixed_unit = ExtResource("3_u")
+variation_pool = Array[Resource]([])
+optional = false
+skip_chance = 0.0
+
+[sub_resource type="Resource" id="Resource_slot_3"]
+script = ExtResource("1_sl_script")
+row = 0
+col = 3
+fixed_unit = ExtResource("4_u")
+variation_pool = Array[Resource]([])
+optional = false
+skip_chance = 0.0
+
+[sub_resource type="Resource" id="Resource_slot_4"]
+script = ExtResource("1_sl_script")
+row = 2
+col = 3
+fixed_unit = ExtResource("4_u")
+variation_pool = Array[Resource]([])
+optional = false
+skip_chance = 0.0
+
+[resource]
+script = ExtResource("2_et_script")
+id = &"t1_bandit_camp"
+display_name = "산적 야영지"
+power_target_override = -1.0
+slots = Array[Resource]([SubResource("Resource_slot_0"), SubResource("Resource_slot_1"), SubResource("Resource_slot_2"), SubResource("Resource_slot_3"), SubResource("Resource_slot_4")])
+rules = Array[Resource]([ExtResource("5_r"), ExtResource("6_r"), ExtResource("7_r")])
