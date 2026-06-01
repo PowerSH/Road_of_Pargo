@@ -85,6 +85,15 @@ func stop_battle() -> void:
 	_running = false
 
 
+## 외부에서 player CombatUnit들에 직접 작업 (예: ItemEffect의 SHIELD 부여) 가능하도록 공개.
+func player_units() -> Array[CombatUnit]:
+	return _player_units
+
+
+func enemy_units() -> Array[CombatUnit]:
+	return _enemy_units
+
+
 func _process(delta: float) -> void:
 	if not _running:
 		return

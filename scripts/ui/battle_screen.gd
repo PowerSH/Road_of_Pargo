@@ -37,6 +37,10 @@ var _current_result: BattleResult
 
 # PREP 상태 — 사이드바에서 선택된 유닛
 var _selected_owned: OwnedUnit = null
+
+## 사용자가 슬롯에 채워둔 ItemEffect들. 슬롯 UI는 후속 — Cargo 아이템 PR 이후 채움.
+## 이 배열이 비어도 ITEM_APPLY 경로는 안전하게 no-op으로 동작한다.
+var _slot_items: Array[ItemEffect] = []
 # 플레이어 셀 버튼 인덱싱: Vector2i(row, col) -> Button
 var _player_cell_buttons: Dictionary = {}
 # 사이드바 버튼: OwnedUnit -> Button
@@ -705,11 +709,19 @@ func _enter_battle() -> void:
 	_combat_manager.unit_spawned.connect(_on_unit_spawned)
 	_battle_layer.add_child(_combat_manager)
 
-	# 플레이어 측: stats + owned + 그리드 위치를 한 번 iter_placed로 같이 빌드 (parallel 보장)
+	# ── ItemEffect 1차 소비: effect_type별 max만 살림 (battle-flow.md §3) ──
+	var item_effects: Array[ItemEffect] = ItemEffectApplier.consolidate(_slot_items)
+
+	# 플레이어 시너지 룰 = 활성 룰 + FAKE_SYNERGY 가상 룰
+	var effective_rules: Array[SynergyRule] = GameState.run.active_rules.duplicate()
+	for fr in ItemEffectApplier.collect_fake_rules(item_effects):
+		effective_rules.append(fr)
+
+	# 플레이어 측: 시너지 + ItemEffect STAT_BOOST 적용 후 빌드
 	var player_stats: Array[ComputedStats] = []
 	var player_owned: Array[OwnedUnit] = []
 	var player_grid: Array[Vector2i] = []
-	var computed: Dictionary = GameState.compute_current_synergies()
+	var computed: Dictionary = SynergyEngine.compute(GameState.board, effective_rules)
 	for entry in GameState.board.iter_placed():
 		var owned_ref: OwnedUnit = entry.unit as OwnedUnit
 		if owned_ref == null:
@@ -720,6 +732,18 @@ func _enter_battle() -> void:
 		player_stats.append(computed[key])
 		player_owned.append(owned_ref)
 		player_grid.append(Vector2i(entry.row, entry.col))
+
+	# TEMP_UNIT 효과로 추가 유닛 보드에 끼움 (전투 종료 후 폐기)
+	for spec in ItemEffectApplier.collect_temp_units(item_effects):
+		var t_owned: OwnedUnit = spec["owned"]
+		if t_owned == null or t_owned.source == null:
+			continue
+		var t_stats: ComputedStats = ComputedStats.from_base(t_owned.source)
+		player_stats.append(t_stats)
+		player_owned.append(t_owned)
+		player_grid.append(Vector2i(spec["row"], spec["col"]))
+
+	ItemEffectApplier.apply_to_player(player_stats, player_owned, item_effects)
 
 	# 적 인카운터 생성
 	var rng := RandomNumberGenerator.new()
@@ -733,16 +757,42 @@ func _enter_battle() -> void:
 	var enemy_stats: Array[ComputedStats] = EnemySynergyEngine.payload_from(
 		_enemy_board, enemy_computed
 	)
+	ItemEffectApplier.apply_to_enemy(enemy_stats, _enemy_units_list, item_effects)
 	var enemy_grid: Array[Vector2i] = []
 	for entry in _enemy_board.iter_placed():
 		enemy_grid.append(Vector2i(entry.row, entry.col))
 
-	print("[BattleScreen] BATTLE start — player=%d enemies=%d" % [
-		player_stats.size(), enemy_stats.size()
+	# Combat-time 적 시너지 룰만 분리 (DEATH_TRIGGER / HP_THRESHOLD / NUMBER_ADVANTAGE).
+	var combat_rules: Array[EnemySynergyRule] = []
+	for rule in _encounter_template.rules:
+		if rule != null and not rule.is_pre_battle():
+			combat_rules.append(rule)
+
+	print("[BattleScreen] BATTLE start — player=%d enemies=%d items=%d combat_rules=%d" % [
+		player_stats.size(), enemy_stats.size(), item_effects.size(), combat_rules.size()
 	])
 	_combat_manager.start_battle(
-		player_stats, player_owned, enemy_stats, player_grid, enemy_grid
+		player_stats, player_owned, enemy_stats, player_grid, enemy_grid, combat_rules
 	)
+
+	# SHIELD 효과 — 스폰된 player CombatUnit에 target_filter_tag 매칭해 부여.
+	for shield_spec in ItemEffectApplier.collect_shields(item_effects):
+		var tag: StringName = shield_spec["filter_tag"]
+		var amount: float = shield_spec["amount"]
+		for u in _combat_manager.player_units():
+			if tag == &"" or _player_matches_filter(u, tag):
+				u.shield += amount
+
+
+## ItemEffect.target_filter_tag로 player CombatUnit 필터링.
+## CombatUnit.stats.source가 UnitData면 has_type 검사.
+func _player_matches_filter(unit: CombatUnit, tag: StringName) -> bool:
+	if unit == null or unit.stats == null:
+		return false
+	var src: Resource = unit.stats.source
+	if src is UnitData:
+		return (src as UnitData).has_type(tag)
+	return false
 
 
 func _on_unit_spawned(unit: CombatUnit) -> void:
