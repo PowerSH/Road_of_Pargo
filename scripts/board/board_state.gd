@@ -1,16 +1,18 @@
 class_name BoardState
-extends RefCounted
+extends Resource
 
 ## In-memory model of the 5x3 placement grid. Pure data, no nodes.
 ## Rows are 0..ROWS-1 (top to bottom); cols are 0..COLS-1 (left to right).
 ## 셀에 들어가는 값은 OwnedUnit 참조. UnitData(type)는 OwnedUnit.source로 접근.
 ## 적군 보드는 이 클래스를 재사용하되 셀 값으로 EnemyUnitData를 직접 보관할 수도 있어
 ## get_unit/place_unit의 타입은 Resource로 받아 양쪽 호환.
+##
+## Resource를 extends한 이유: RunState 저장 시 SubResource로 같이 직렬화됨.
 
 const ROWS: int = 3
 const COLS: int = 5
 
-var _cells: Array = []  ## Array[Array[Resource|null]], shape ROWS x COLS
+@export var _cells: Array = []  ## Array[Array[Resource|null]], shape ROWS x COLS
 
 
 func _init() -> void:

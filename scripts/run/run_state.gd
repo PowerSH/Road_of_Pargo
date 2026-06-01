@@ -1,40 +1,44 @@
 class_name RunState
-extends RefCounted
+extends Resource
 
 ## Persistent state for a single roguelite run. Lives inside GameState while a
-## run is active. Save/load is intentionally not wired here — once the data
-## model stabilizes, ResourceSaver.save(self) on a serializable Resource form
-## will be enough.
+## run is active. Resource로 전환 — `ResourceSaver.save(run, "user://run.tres")`로
+## 저장 가능 (Round 6).
 
 const STARTING_HEALTH: int = 80
 const STARTING_GOLD: int = 50
 
-var health: int = STARTING_HEALTH
-var max_health: int = STARTING_HEALTH
-var gold: int = STARTING_GOLD
+## RunState.health / max_health는 R4 합의로 폐기됨 (런 HP 시스템 없음). 호환을 위해 보관만.
+@export var health: int = STARTING_HEALTH
+@export var max_health: int = STARTING_HEALTH
+@export var gold: int = STARTING_GOLD
 
 ## Units the player owns (the "deck"). 같은 UnitData를 두 번 영입하면 OwnedUnit이 2개.
 ## 배치된 일부 + 보관함의 나머지로 분류되며 battle-flow.md §2 참조.
-var owned_units: Array[OwnedUnit] = []
+@export var owned_units: Array[OwnedUnit] = []
 
 ## Synergy rules currently in effect. Events / relics can mutate this mid-run.
-var active_rules: Array[SynergyRule] = []
+@export var active_rules: Array[SynergyRule] = []
 
 ## 상단의 적재함. cargo-and-mortality.md §1 — 초기 4×3, 도시에서 확장 구매 가능.
-var cargo: CargoState = CargoState.new()
+@export var cargo: CargoState = CargoState.new()
 
 ## Current chapter (1=마을 / 2=도시 / 3=국가). progression.md §1 참조.
 ## 부상 카운트다운 초기값과 적군 power target 계산에 사용.
-var chapter: int = 1
+@export var chapter: int = 1
 
 ## The current run's node map.
-var nodes: Array[MapNode] = []
+@export var nodes: Array[MapNode] = []
 ## Index into `nodes` of the player's current position. -1 == not entered yet.
-var current_node_index: int = -1
+@export var current_node_index: int = -1
 ## Indices of nodes whose kind has been revealed to the player.
 ## Default Fog of War (progression.md §3, option A): revealed on arrival.
 ## Boss node is always revealed (목적지로 기능).
-var revealed_nodes: Array[int] = []
+@export var revealed_nodes: Array[int] = []
+
+## 5×3 편성 보드. save 시점에 GameState.board를 여기에 스냅샷 → 같은 SubResource로 직렬화.
+## 로드 시 GameState가 다시 GameState.board 변수에 꽂아 넣음.
+@export var board: BoardState = BoardState.new()
 
 
 ## 새 OwnedUnit을 만들어 영입. 같은 UnitData를 또 영입하면 OwnedUnit 인스턴스 별개로 생성.

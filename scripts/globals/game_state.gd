@@ -14,6 +14,7 @@ signal run_cleared
 
 const UNITS_DIR: String = "res://resource/units/"
 const SYNERGIES_DIR: String = "res://resource/synergies/"
+const SAVE_PATH: String = "user://run.tres"
 
 var run: RunState
 var board: BoardState
@@ -85,6 +86,57 @@ func end_run(victory: bool) -> void:
 	run_ended.emit(victory)
 	run = null
 	board = null
+
+
+# ─────────────────────────────────────────────────────────────
+# Save / Load (Round 6)
+# ─────────────────────────────────────────────────────────────
+
+## 현재 런 상태를 user://run.tres 로 저장. 성공 시 true.
+## board는 run.board에 스냅샷 후 ResourceSaver로 SubResource로 같이 직렬화.
+func save_run() -> bool:
+	if run == null:
+		return false
+	run.board = board if board != null else BoardState.new()
+	var err: int = ResourceSaver.save(run, SAVE_PATH)
+	if err != OK:
+		push_warning("[GameState] save_run failed (err=%d)" % err)
+		return false
+	print("[GameState] saved → %s" % SAVE_PATH)
+	return true
+
+
+## user://run.tres 에서 RunState 복원. 성공 시 true 반환 + run/board 갱신.
+## 기존 run이 있으면 silently 교체된다.
+func load_run() -> bool:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return false
+	var loaded: Resource = load(SAVE_PATH)
+	var loaded_run: RunState = loaded as RunState
+	if loaded_run == null:
+		push_warning("[GameState] load_run: invalid Resource at %s" % SAVE_PATH)
+		return false
+	run = loaded_run
+	board = loaded_run.board if loaded_run.board != null else BoardState.new()
+	print("[GameState] loaded ← %s (chapter %d)" % [SAVE_PATH, run.chapter])
+	run_started.emit()
+	return true
+
+
+## 저장 파일 존재 여부 — 메인 메뉴의 "이어하기" 버튼 활성화 판정용.
+func has_save() -> bool:
+	return FileAccess.file_exists(SAVE_PATH)
+
+
+## 저장 파일 삭제. 새 런 시작 시 호출(선택)하거나 명시적 메뉴 액션.
+func delete_save() -> bool:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return false
+	var dir: DirAccess = DirAccess.open("user://")
+	if dir == null:
+		return false
+	var err: int = dir.remove(SAVE_PATH.replace("user://", ""))
+	return err == OK
 
 
 func enter_node(index: int) -> bool:

@@ -1,5 +1,5 @@
 class_name CargoState
-extends RefCounted
+extends Resource
 
 ## 적재 그리드 모델. width × height 셀에 CargoItem을 배치한다.
 ## 한 셀은 최대 1개 placement에만 속한다 (겹침 X).
@@ -7,15 +7,17 @@ extends RefCounted
 ##
 ## CargoItem 회전은 0/1/2/3 (각 90° CW). UI에서 R 키로 회전 후 anchor 이동시키는 흐름.
 ## 자동 정렬은 명시 호출만 (auto_sort) — 실시간 자동 X.
+##
+## Resource를 extends한 이유: ResourceSaver로 RunState 저장 시 같이 직렬화되기 위함.
 
 const DEFAULT_WIDTH: int = 4
 const DEFAULT_HEIGHT: int = 3
 
-var width: int = DEFAULT_WIDTH
-var height: int = DEFAULT_HEIGHT
+@export var width: int = DEFAULT_WIDTH
+@export var height: int = DEFAULT_HEIGHT
 
 ## CargoItem -> {anchor: Vector2i, rotation: int}
-var _placements: Dictionary = {}
+@export var _placements: Dictionary = {}
 
 
 func _init(w: int = DEFAULT_WIDTH, h: int = DEFAULT_HEIGHT) -> void:
