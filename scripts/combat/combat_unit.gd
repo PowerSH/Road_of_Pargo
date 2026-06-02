@@ -16,11 +16,17 @@ signal facing_changed(face_left: bool)
 ## 이상이 되도록 떨어진다 (같은 팀 분리 + 적 근접 정지 모두에 사용).
 ## 스프라이트 표시 크기는 이 지름(72px)보다 작아야 시각적으로 안 겹친다.
 const BODY_RADIUS: float = 36.0
-## 동맹 분리 — 같은 팀 유닛끼리 너무 가까우면 밀어냄.
+## 분리 — 모든 유닛(동맹+적)끼리 너무 가까우면 서로 밀어냄.
 const SEPARATION_RADIUS: float = 76.0
-const SEPARATION_STRENGTH: float = 120.0
+const SEPARATION_STRENGTH: float = 200.0
+## ATTACK 상태에서도 약한 분리 적용 — 비비기 풀림에 도움. (자기 자리 잡은 뒤 미세조정)
+const ATTACK_SEPARATION_FACTOR: float = 0.20
 ## 공격 거리의 이 비율까지만 접근. 단, 몸체 지름(2*BODY_RADIUS)보다 가깝겐 안 감.
 const APPROACH_RATIO: float = 0.9
+## 같은 타겟을 노리는 동맹과 최소 이만큼 각도 떨어지게 desired position 계산.
+const TARGET_RING_MIN_ARC_DEG: float = 60.0
+## 타겟 선택 시 같은 적을 이미 노리는 동맹 1명당 점수 감점 (load balancing).
+const TARGET_LOAD_PENALTY: float = 120.0
 ## defense의 절대 상한 — 무적 방지. 1.0 이상이면 데미지 음수 가능.
 const DEFENSE_CAP: float = 0.95
 
@@ -129,15 +135,14 @@ func tick(delta: float, enemies: Array[CombatUnit], allies: Array[CombatUnit] = 
 		_attack_cooldown -= delta
 
 	if target == null or not target.is_alive():
-		target = _find_nearest(enemies)
+		target = _select_target(enemies, allies)
 		if target == null:
 			state = State.SEARCH
 			return
 
+	# 바라보는 방향은 target 기준 (desired position 아님).
 	var to_target: Vector2 = target.position - position
-	var dist: float = to_target.length()
-
-	# 바라보는 방향 — target 쪽으로. 바뀔 때만 신호.
+	var raw_dist: float = to_target.length()
 	var want_left: bool = to_target.x < 0.0
 	if want_left != _face_left:
 		_face_left = want_left
@@ -147,27 +152,25 @@ func tick(delta: float, enemies: Array[CombatUnit], allies: Array[CombatUnit] = 
 	var eff_atkspd: float = effective_attack_speed()
 	var eff_mvspd: float = effective_move_speed()
 
-	if dist <= eff_range:
-		# 공격 상태 — 완전 정지. 이동도, 동맹 분리 밀침도 적용하지 않는다.
-		# "멈춰서 공격" — 움직이면서 공격하지 않는다.
+	if raw_dist <= eff_range:
+		# 공격 상태 — 거의 정지. 약한 분리는 적용 (자리 잡은 후 겹침 풀림).
 		state = State.ATTACK
 		if _attack_cooldown <= 0.0:
 			_perform_attack(target)
 			_attack_cooldown = 1.0 / max(eff_atkspd, 0.001)
+		_apply_separation(allies, enemies, delta * ATTACK_SEPARATION_FACTOR)
 	else:
+		# 이동 — desired_attack_position 향해. 같은 타겟 노리는 동맹과 각도 분산.
 		state = State.MOVE
+		var desired: Vector2 = _compute_desired_attack_position(target, allies, eff_range)
+		var to_desired: Vector2 = desired - position
+		var desired_dist: float = to_desired.length()
 		var step: float = eff_mvspd * delta
-		# 정지 거리: 사정거리의 APPROACH_RATIO. 단 몸체가 겹치지 않게 2*BODY_RADIUS 이상 유지.
-		# (근접 사정거리가 몸체 지름보다 작으면 사정거리 끝에서 멈춤 — 그래야 공격은 됨)
-		var min_clear: float = minf(2.0 * BODY_RADIUS, eff_range)
-		var stop_dist: float = maxf(eff_range * APPROACH_RATIO, min_clear)
-		var travel: float = max(dist - stop_dist, 0.0)
-		var actual_step: float = min(step, travel)
-		if dist > 0.0:
-			position += to_target / dist * actual_step
-		# 동맹 분리는 이동 중(MOVE)에만 — 같은 적을 향해 다가가는 동맹들이 한 점에 안 모이게.
-		# 공격 중인 유닛은 밀리지 않으므로, 이동 중인 동맹이 알아서 비켜간다.
-		_apply_separation(allies, delta)
+		var actual_step: float = minf(step, desired_dist)
+		if desired_dist > 0.001:
+			position += to_desired / desired_dist * actual_step
+		# 일반 분리 — 동맹 + 적 모두. 적 라인 못 뚫게.
+		_apply_separation(allies, enemies, delta)
 
 
 ## 한 번의 공격 데미지 산출 + 적용 + lifesteal.
@@ -197,9 +200,9 @@ func _perform_attack(t: CombatUnit) -> void:
 		heal(final_dmg * stats.lifesteal)
 
 
-func _apply_separation(allies: Array[CombatUnit], delta: float) -> void:
-	if allies.is_empty():
-		return
+## 동맹 + 적 모두에 대해 SEPARATION_RADIUS 안에 들어오면 밀어냄.
+## 적 라인 못 뚫게 + 같은 적 주변 비비기 풀림. 단 타겟 적은 제외(사거리 끝에서 접촉 가능).
+func _apply_separation(allies: Array[CombatUnit], enemies: Array[CombatUnit], delta: float) -> void:
 	var push: Vector2 = Vector2.ZERO
 	for ally in allies:
 		if ally == self or not ally.is_alive():
@@ -208,21 +211,92 @@ func _apply_separation(allies: Array[CombatUnit], delta: float) -> void:
 		var d: float = diff.length()
 		if d > 0.001 and d < SEPARATION_RADIUS:
 			push += diff / d * (SEPARATION_RADIUS - d) / SEPARATION_RADIUS
+	for e in enemies:
+		if not e.is_alive() or e == target:
+			continue
+		var diff_e: Vector2 = position - e.position
+		var de: float = diff_e.length()
+		if de > 0.001 and de < SEPARATION_RADIUS:
+			push += diff_e / de * (SEPARATION_RADIUS - de) / SEPARATION_RADIUS
 	if push.length_squared() > 0.0:
 		position += push * SEPARATION_STRENGTH * delta
 
 
-func _find_nearest(enemies: Array[CombatUnit]) -> CombatUnit:
+## 타겟 선택 — 거리 우선, 같은 타겟 노리는 동맹 수로 점수 감점 (load balancing).
+## 결과: 4명 vs 3명이면 한 명만 더블링하고 나머지는 1:1 분산.
+func _select_target(enemies: Array[CombatUnit], allies: Array[CombatUnit]) -> CombatUnit:
+	if enemies.is_empty():
+		return null
+	# 적별 현재 부하 카운트.
+	var load: Dictionary = {}  ## CombatUnit → int
+	for ally in allies:
+		if ally == self or not ally.is_alive():
+			continue
+		if ally.target != null and ally.target.is_alive():
+			load[ally.target] = int(load.get(ally.target, 0)) + 1
+
 	var best: CombatUnit = null
-	var best_dist: float = INF
+	var best_score: float = -INF
 	for e in enemies:
 		if not e.is_alive():
 			continue
-		var d: float = position.distance_squared_to(e.position)
-		if d < best_dist:
-			best_dist = d
+		var dist: float = position.distance_to(e.position)
+		var load_n: int = int(load.get(e, 0))
+		var score: float = 1000.0 - dist - float(load_n) * TARGET_LOAD_PENALTY
+		if score > best_score:
+			best_score = score
 			best = e
 	return best
+
+
+## 타겟 주변에서 자기가 갈 위치 결정.
+## 같은 target을 노리는 동맹의 점유 각도 피해서 빈 각도 찾음 (TARGET_RING_MIN_ARC_DEG 간격).
+## 못 찾으면 자기 자연 접근 방향 폴백.
+func _compute_desired_attack_position(t: CombatUnit, allies: Array[CombatUnit],
+		eff_range: float) -> Vector2:
+	# 자기 위치에서 target 향한 자연 접근 각 (target에서 자기를 본 각도).
+	var natural_angle: float = (position - t.position).angle()
+	var blocked: Array[float] = []
+	for ally in allies:
+		if ally == self or not ally.is_alive():
+			continue
+		if ally.target != t:
+			continue
+		var a: float = (ally.position - t.position).angle()
+		blocked.append(a)
+
+	var min_arc: float = deg_to_rad(TARGET_RING_MIN_ARC_DEG)
+	var chosen: float = natural_angle
+	# 자연각이 막혔으면 ±30°·±60°·±90°·±120° 순으로 시도.
+	if _is_angle_blocked(chosen, blocked, min_arc):
+		for attempt in 8:
+			var step_idx: int = (attempt / 2) + 1
+			var dir_sign: float = 1.0 if attempt % 2 == 0 else -1.0
+			var candidate: float = natural_angle + dir_sign * deg_to_rad(30.0 * float(step_idx))
+			if not _is_angle_blocked(candidate, blocked, min_arc):
+				chosen = candidate
+				break
+			# 마지막 시도도 막혔으면 마지막 candidate로 둠 — 자연각보다 분산되어 있음.
+			if attempt == 7:
+				chosen = candidate
+
+	# 정지 거리: 사정거리의 APPROACH_RATIO. 단 몸체 지름 미만은 X.
+	var min_clear: float = minf(2.0 * BODY_RADIUS, eff_range)
+	var approach_dist: float = maxf(eff_range * APPROACH_RATIO, min_clear)
+	return t.position + Vector2.from_angle(chosen) * approach_dist
+
+
+static func _is_angle_blocked(angle: float, blocked: Array[float], min_arc: float) -> bool:
+	for b in blocked:
+		if absf(_angle_diff(angle, b)) < min_arc:
+			return true
+	return false
+
+
+## a - b를 [-PI, PI]로 normalize.
+static func _angle_diff(a: float, b: float) -> float:
+	var d: float = fposmod(a - b + PI, TAU) - PI
+	return d
 
 
 func _die() -> void:
