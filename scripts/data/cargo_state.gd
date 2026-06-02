@@ -11,7 +11,7 @@ extends Resource
 ## Resource를 extends한 이유: ResourceSaver로 RunState 저장 시 같이 직렬화되기 위함.
 
 const DEFAULT_WIDTH: int = 4
-const DEFAULT_HEIGHT: int = 3
+const DEFAULT_HEIGHT: int = 4
 
 @export var width: int = DEFAULT_WIDTH
 @export var height: int = DEFAULT_HEIGHT
