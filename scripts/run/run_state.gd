@@ -40,6 +40,14 @@ const STARTING_GOLD: int = 50
 ## 로드 시 GameState가 다시 GameState.board 변수에 꽂아 넣음.
 @export var board: BoardState = BoardState.new()
 
+## 진행 중인 퀘스트들. 한 role(길드장/조합장/상인/주민)당 최대 1개.
+@export var active_quests: Array[Quest] = []
+## 완료해서 보상 수령된 퀘스트 id 모음 (재시도 방지·통계).
+@export var completed_quest_ids: Array[StringName] = []
+## 트래킹용 누적 카운터.
+@export var battles_won_total: int = 0
+@export var units_hired_total: int = 0
+
 
 ## 새 OwnedUnit을 만들어 영입. 같은 UnitData를 또 영입하면 OwnedUnit 인스턴스 별개로 생성.
 func add_unit_data(data: UnitData) -> OwnedUnit:
@@ -48,7 +56,27 @@ func add_unit_data(data: UnitData) -> OwnedUnit:
 	owned.acquired_chapter = chapter
 	owned.acquired_stage = max(current_node_index, 0)
 	owned_units.append(owned)
+	units_hired_total += 1
+	QuestTracker.on_unit_hired(self)
 	return owned
+
+
+## 전투 종료(WIN) 시 호출. 카운터 증가 + 퀘스트 진행도 누적.
+func note_battle_won(was_boss: bool) -> void:
+	battles_won_total += 1
+	QuestTracker.on_battle_won(self, was_boss)
+
+
+## 특정 role의 active quest 1개 반환. 없으면 null.
+func active_quest_from_role(role: String) -> Quest:
+	for q in active_quests:
+		if q.giver_role == role:
+			return q
+	return null
+
+
+func has_active_quest_from(role: String) -> bool:
+	return active_quest_from_role(role) != null
 
 
 ## 이미 만들어진 OwnedUnit을 추가 (예: 특수 이벤트로 NPC 합류).

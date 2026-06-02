@@ -26,22 +26,40 @@ const FIXED_NPCS: Array = [
 const MERCHANT_NAMES: Array[String] = ["카르토", "베른", "토마스", "안나", "헬가", "일리아"]
 const RESIDENT_NAMES: Array[String] = ["그레타", "루드비크", "미라", "페테", "한나", "욘"]
 
-const QUESTS_BY_ROLE: Dictionary = {
+## 역할별 퀘스트 템플릿. 매번 무작위 1개를 골라서 NPC가 제안.
+## kind / target_value / reward_gold / description / detail / reward_text.
+const QUEST_TEMPLATES_BY_ROLE: Dictionary = {
 	"길드장": [
-		{"text": "다음 챕터로 가는 산길에 도적단이 출몰한다는 보고가 있다. 정리해주면 길드 측에서 사례하겠다.", "reward": 80},
-		{"text": "용병단 결원이 생겼네. 모험가를 만나거든 합류 제안을 전해주게.", "reward": 60},
+		{"kind": Quest.Kind.WIN_BATTLES, "target": 3, "reward": 100,
+		 "desc": "노상 정리 의뢰", "reward_text": "100 G",
+		 "detail": "이 마을을 떠나기 전 3번의 전투에서 승리해 도로를 안전하게 만들어 주게."},
+		{"kind": Quest.Kind.DEFEAT_BOSS, "target": 1, "reward": 150,
+		 "desc": "보스 토벌", "reward_text": "150 G",
+		 "detail": "다음 챕터 보스를 직접 처치하라. 보상은 길드 금고에서 직접 내겠다."},
 	],
 	"조합장": [
-		{"text": "이웃 상단과의 보호 계약 의뢰일세. 다음 전투에서 살아남는다면 보상금을 보장하지.", "reward": 80},
-		{"text": "조합 평판을 회복할 필요가 있어. 도시에서 좋은 인상을 남겨주게.", "reward": 50},
+		{"kind": Quest.Kind.WIN_BATTLES, "target": 2, "reward": 70,
+		 "desc": "상단 호위", "reward_text": "70 G",
+		 "detail": "이웃 상단의 호위 계약일세. 다음 2번의 전투에서 살아남으면 보상금을 보장하지."},
+		{"kind": Quest.Kind.HIRE_UNITS, "target": 2, "reward": 80,
+		 "desc": "용병단 보강", "reward_text": "80 G",
+		 "detail": "새 용병 2명을 영입하라. 조합이 지원금을 내겠다."},
 	],
 	"상인": [
-		{"text": "새 물건이 들어왔소. 길에서 만나는 이들에게 알려주면 작은 답례를 드리리다.", "reward": 30},
-		{"text": "행상길에 위협이 있소. 호위를 맡아 준다면 사례하지.", "reward": 50},
+		{"kind": Quest.Kind.WIN_BATTLES, "target": 1, "reward": 40,
+		 "desc": "도로 정리", "reward_text": "40 G",
+		 "detail": "다음 전투에서 승리해 주시오. 작은 답례를 드리리다."},
+		{"kind": Quest.Kind.HIRE_UNITS, "target": 1, "reward": 30,
+		 "desc": "용병 추천", "reward_text": "30 G",
+		 "detail": "용병 1명을 새로 영입하시오. 거래 안전에 도움이 될 게요."},
 	],
 	"주민": [
-		{"text": "잃어버린 양 한 마리를 찾아 주시면 감사하겠어요. 보답은 약소하지만요.", "reward": 25},
-		{"text": "회의소 앞 청소를 도와주실래요? 작은 보답을 드릴게요.", "reward": 20},
+		{"kind": Quest.Kind.WIN_BATTLES, "target": 1, "reward": 25,
+		 "desc": "마을 수호", "reward_text": "25 G",
+		 "detail": "도로의 위험을 한 번 정리해 주세요. 적은 돈이지만 감사 표시를 드리겠어요."},
+		{"kind": Quest.Kind.HIRE_UNITS, "target": 1, "reward": 20,
+		 "desc": "마을 청년 추천", "reward_text": "20 G",
+		 "detail": "마을 청년이 용병 일에 관심이 있어요. 한 명만 더 영입해 주시겠어요?"},
 	],
 }
 
@@ -65,7 +83,12 @@ var _npc_meet_overlay: Control
 var _npc_meet_title_label: Label
 var _npc_meet_body_label: Label
 var _npc_meet_current: Dictionary = {}
-var _npc_meet_quest: Dictionary = {}
+## 신규 제안 모드일 때 보관 — 수락 버튼 클릭 시 Quest 객체로 변환되어 active_quests에 추가됨.
+var _npc_meet_pending_template: Dictionary = {}
+## 신규 제안 / 진행 중 / 완료 보상 수령 — 3-state 분기용 버튼들.
+var _npc_meet_accept_btn: Button
+var _npc_meet_claim_btn: Button
+var _npc_meet_leave_btn: Button
 
 
 func _ready() -> void:
@@ -491,33 +514,74 @@ func _on_npc_select(idx: int) -> void:
 	if idx < 0 or idx >= _current_npcs.size():
 		return
 	_npc_meet_current = _current_npcs[idx]
-	_pick_quest_for_meet()
 	_apply_meet_to_ui()
 	_npc_list_overlay.visible = false
 	_npc_meet_overlay.visible = true
 
 
-func _pick_quest_for_meet() -> void:
-	var role: String = _npc_meet_current.get("role", "주민")
-	var pool: Array = QUESTS_BY_ROLE.get(role, [])
-	if pool.is_empty():
-		_npc_meet_quest = {"text": "별다른 용건은 없는 모양이다.", "reward": 0}
-		return
-	_npc_meet_quest = pool[GameState.rng.randi() % pool.size()]
-
-
+## NPC 조우 화면을 현재 active quest 상태에 따라 갱신.
+## 3-state: 신규 제안 / 진행 중 / 완료 보상 수령.
 func _apply_meet_to_ui() -> void:
+	var role: String = _npc_meet_current.get("role", "?")
+	var npc_name: String = _npc_meet_current.get("name", "?")
 	if _npc_meet_title_label != null:
-		_npc_meet_title_label.text = "%s — %s" % [
-			_npc_meet_current.get("name", "?"),
-			_npc_meet_current.get("role", "?"),
-		]
-	if _npc_meet_body_label != null:
-		var body: String = _npc_meet_quest.get("text", "")
-		var reward: int = int(_npc_meet_quest.get("reward", 0))
-		if reward > 0:
-			body += "\n\n[보상: %d G]" % reward
-		_npc_meet_body_label.text = body
+		_npc_meet_title_label.text = "%s — %s" % [npc_name, role]
+
+	var active: Quest = GameState.run.active_quest_from_role(role)
+	if active != null:
+		if active.is_complete():
+			_set_meet_complete_state(active)
+		else:
+			_set_meet_in_progress_state(active)
+	else:
+		var tmpl: Dictionary = _pick_quest_template(role)
+		_npc_meet_pending_template = tmpl
+		_set_meet_offer_state(tmpl)
+
+
+func _pick_quest_template(role: String) -> Dictionary:
+	var pool: Array = QUEST_TEMPLATES_BY_ROLE.get(role, [])
+	if pool.is_empty():
+		return {}
+	return pool[GameState.rng.randi() % pool.size()]
+
+
+# ── 3-state 본문 + 버튼 ────────────────────────────────────────
+
+func _set_meet_offer_state(tmpl: Dictionary) -> void:
+	if tmpl.is_empty():
+		_npc_meet_body_label.text = "별다른 용건은 없는 모양이다."
+		_npc_meet_accept_btn.visible = false
+		_npc_meet_claim_btn.visible = false
+		_npc_meet_leave_btn.text = "떠나기"
+		return
+	var body: String = "%s\n\n%s" % [tmpl.get("desc", ""), tmpl.get("detail", "")]
+	body += "\n\n[보상: %s]" % tmpl.get("reward_text", "")
+	_npc_meet_body_label.text = body
+	_npc_meet_accept_btn.visible = true
+	_npc_meet_accept_btn.text = "퀘스트 수락"
+	_npc_meet_claim_btn.visible = false
+	_npc_meet_leave_btn.text = "떠나기"
+
+
+func _set_meet_in_progress_state(q: Quest) -> void:
+	var body: String = "[진행 중] %s\n\n%s" % [q.description, q.detail]
+	body += "\n\n진행도: %s   보상: %s" % [q.progress_text(), q.reward_text]
+	_npc_meet_body_label.text = body
+	_npc_meet_accept_btn.visible = false
+	_npc_meet_claim_btn.visible = false
+	_npc_meet_leave_btn.text = "떠나기"
+
+
+func _set_meet_complete_state(q: Quest) -> void:
+	var body: String = "[완료!] %s\n\n%s\n\n수령 가능한 보상: %s" % [
+		q.description, q.detail, q.reward_text,
+	]
+	_npc_meet_body_label.text = body
+	_npc_meet_accept_btn.visible = false
+	_npc_meet_claim_btn.visible = true
+	_npc_meet_claim_btn.text = "보상 수령"
+	_npc_meet_leave_btn.text = "떠나기"
 
 
 func _on_npc_list_close() -> void:
@@ -552,18 +616,51 @@ func _build_npc_list_overlay() -> void:
 # NPC 조우 (화면 2)
 # ─────────────────────────────────────────────────────────────
 
+## 신규 퀘스트 수락 — pending template을 Quest 객체로 변환해 active_quests에 추가.
+## 골드는 여기서 안 줌 (완료 후 보상 수령에서 지급).
 func _on_npc_accept_pressed() -> void:
-	var reward: int = int(_npc_meet_quest.get("reward", 0))
-	GameState.run.gold += reward
-	print("[Hub NPC] 퀘스트 수락 — %s: +%d G (잔액 %d)" % [
-		_npc_meet_current.get("name", "?"), reward, GameState.run.gold
+	if _npc_meet_pending_template.is_empty():
+		return
+	var role: String = _npc_meet_current.get("role", "?")
+	# 동일 role의 active quest가 있으면 거부 (UI에선 이미 분기됨, 안전망).
+	if GameState.run.has_active_quest_from(role):
+		return
+	var tmpl: Dictionary = _npc_meet_pending_template
+	var q := Quest.new()
+	q.id = StringName("q_%s_%d" % [role, Time.get_ticks_msec()])
+	q.giver_role = role
+	q.giver_name = _npc_meet_current.get("name", "?")
+	q.description = tmpl.get("desc", "")
+	q.detail = tmpl.get("detail", "")
+	q.kind = int(tmpl.get("kind", Quest.Kind.WIN_BATTLES))
+	q.target_value = int(tmpl.get("target", 1))
+	q.reward_gold = int(tmpl.get("reward", 0))
+	q.reward_text = tmpl.get("reward_text", "")
+	q.accepted_at_chapter = GameState.run.chapter
+	q.accepted_at_stage = max(GameState.run.current_node_index, 0)
+	GameState.run.active_quests.append(q)
+	_npc_meet_pending_template = {}
+	print("[Hub NPC] 퀘스트 수락: %s (%s) — %s" % [q.description, role, q.summary()])
+	_return_to_npc_list()
+
+
+## 완료된 퀘스트 보상 수령 — 골드 지급 + active_quests에서 제거 + completed에 추가.
+func _on_npc_claim_pressed() -> void:
+	var role: String = _npc_meet_current.get("role", "?")
+	var q: Quest = GameState.run.active_quest_from_role(role)
+	if q == null or not q.is_complete():
+		return
+	if not QuestTracker.grant_reward(GameState.run, q):
+		return
+	GameState.run.active_quests.erase(q)
+	GameState.run.completed_quest_ids.append(q.id)
+	print("[Hub NPC] 퀘스트 보상 수령: %s — +%d G (잔액 %d)" % [
+		q.description, q.reward_gold, GameState.run.gold
 	])
-	# 수락하면 리스트로 복귀. 같은 NPC를 또 만나면 다른 퀘스트 뽑힘.
 	_return_to_npc_list()
 
 
 func _on_npc_leave_pressed() -> void:
-	# 떠나기: 보상 없이 리스트로 복귀.
 	_return_to_npc_list()
 
 
@@ -595,16 +692,22 @@ func _build_npc_meet_overlay() -> void:
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override(&"separation", 16)
-	var accept_btn := Button.new()
-	accept_btn.text = "퀘스트 수락"
-	accept_btn.custom_minimum_size = Vector2(140, 40)
-	accept_btn.pressed.connect(_on_npc_accept_pressed)
-	buttons.add_child(accept_btn)
-	var leave_btn := Button.new()
-	leave_btn.text = "떠나기"
-	leave_btn.custom_minimum_size = Vector2(140, 40)
-	leave_btn.pressed.connect(_on_npc_leave_pressed)
-	buttons.add_child(leave_btn)
+	_npc_meet_accept_btn = Button.new()
+	_npc_meet_accept_btn.text = "퀘스트 수락"
+	_npc_meet_accept_btn.custom_minimum_size = Vector2(140, 40)
+	_npc_meet_accept_btn.pressed.connect(_on_npc_accept_pressed)
+	buttons.add_child(_npc_meet_accept_btn)
+	_npc_meet_claim_btn = Button.new()
+	_npc_meet_claim_btn.text = "보상 수령"
+	_npc_meet_claim_btn.custom_minimum_size = Vector2(140, 40)
+	_npc_meet_claim_btn.visible = false
+	_npc_meet_claim_btn.pressed.connect(_on_npc_claim_pressed)
+	buttons.add_child(_npc_meet_claim_btn)
+	_npc_meet_leave_btn = Button.new()
+	_npc_meet_leave_btn.text = "떠나기"
+	_npc_meet_leave_btn.custom_minimum_size = Vector2(140, 40)
+	_npc_meet_leave_btn.pressed.connect(_on_npc_leave_pressed)
+	buttons.add_child(_npc_meet_leave_btn)
 	vbox.add_child(buttons)
 
 

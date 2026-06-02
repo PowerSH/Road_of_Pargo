@@ -886,6 +886,10 @@ func _on_battle_ended(result: BattleResult) -> void:
 
 	GameState.run.gold += result.gold_reward
 
+	# WIN 시 카운터·퀘스트 진행도 누적.
+	if result.outcome == BattleResult.Outcome.PLAYER_WIN:
+		GameState.run.note_battle_won(is_boss)
+
 	print("[BattleScreen] BATTLE end — outcome=%s gold=+%d dur=%.1fs" % [
 		BattleResult.Outcome.keys()[result.outcome],
 		result.gold_reward,
