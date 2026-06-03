@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_syn")
 id = &"syn_ven_infantry_t2"
-display_name = "벤+보병 T2"
+display_name = "벤 보병단(2)"
 description = "벤 보병이 인접했을 때 발동"
 applies_to_type = &"nation_ven"
 requires_adjacent_type = &"class_infantry"

@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_syn")
 id = &"syn_arden_archer_t3"
-display_name = "아르덴+궁병 T3"
+display_name = "아르덴 궁수대(3)"
 description = "아르덴 궁병이 인접했을 때 발동"
 applies_to_type = &"nation_arden"
 requires_adjacent_type = &"class_archer"

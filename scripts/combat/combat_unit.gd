@@ -53,6 +53,11 @@ var bonus_range_pct: float = 0.0
 ## ItemEffect.SHIELD에서 부여되는 절대값 보호막. 데미지를 먼저 흡수.
 var shield: float = 0.0
 
+## 전투 통계 — 결과 화면 MVP / 총 데미지 집계용. 매 공격마다 누적된다.
+## damage_dealt = 이 유닛이 가한 총(gross) 데미지, kills = 막타를 넣어 처치한 적 수.
+var damage_dealt: float = 0.0
+var kills: int = 0
+
 ## 현재 바라보는 방향 (true=왼쪽). target 방향으로 갱신, 바뀔 때만 facing_changed emit.
 var _face_left: bool = false
 
@@ -193,7 +198,11 @@ func _perform_attack(t: CombatUnit) -> void:
 	var pen: float = clampf(stats.armor_penetration, 0.0, 1.0)
 	var effective_def: float = clampf(def * (1.0 - pen), 0.0, DEFENSE_CAP)
 	var final_dmg: float = maxf(raw * (1.0 - effective_def), 0.0)
+	# t는 tick()이 호출 직전 is_alive()를 보장 → 막타 판정은 take_damage 후 사망 여부로.
 	t.take_damage(final_dmg)
+	damage_dealt += final_dmg
+	if not t.is_alive():
+		kills += 1
 	# 흡혈은 SHIELD에 흡수된 데미지엔 적용 X — 실제 HP 깎인 양 기준이면 정확하지만
 	# 산식 복잡해지니 일단 final_dmg 기준으로 단순화.
 	if stats.lifesteal > 0.0 and final_dmg > 0.0:

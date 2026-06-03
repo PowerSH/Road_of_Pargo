@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_unit")
 id = &"ven_infantry_mercenary"
-display_name = "벤 용병 보병"
+display_name = "크리스"
 max_hp = 180.0
 attack = 16.0
 attack_speed = 0.95

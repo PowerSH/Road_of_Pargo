@@ -35,6 +35,13 @@ const HP_BAR_GAP: float = 6.0  ## 스프라이트 상단과 바 하단 사이 �
 # PREP 그리드 셀 크기
 const CELL_SIZE: Vector2 = Vector2(92, 58)
 const CELL_GAP: int = 3
+## 배치 칸 포트레이트 — 유닛 .tres에 아이콘이 없어 전투와 동일한 스프라이트 frame 0 사용.
+const UNIT_PORTRAIT_PATH: String = "res://resource/sprites/warrior/0.png"
+const ENEMY_PORTRAIT_PATH: String = "res://resource/sprites/slime/0.png"
+## 시너지가 발동된 배치 칸 강조 색 (금색).
+const SYNERGY_CELL_TINT: Color = Color(1.0, 0.85, 0.45)
+## 배치됐지만 시너지 미발동인 칸 색 (옅은 청색).
+const CELL_PLACED_TINT: Color = Color(0.75, 0.9, 1.0)
 
 # 보관함 — 2행 × 5열 = 10칸. 미배치 유닛만 채우고 나머지는 빈 슬롯.
 const ROSTER_COLS: int = 5
@@ -64,6 +71,18 @@ var _player_cell_buttons: Dictionary = {}
 var _sidebar_buttons: Dictionary = {}
 # 보관함 그리드 (직접 참조 — _refresh_sidebar가 _prep_layer 의존 없이 갱신)
 var _roster_box: GridContainer
+
+# PREP 시너지 표시 — 발동 시너지 요약 라벨 + id→룰 캐시 + 포트레이트 텍스처 캐시
+var _synergy_label: Label
+var _synergy_rule_lookup: Dictionary = {}  ## StringName id -> SynergyRule
+var _portrait_tex: Texture2D
+var _enemy_portrait_tex: Texture2D
+
+# 마우스 호버 유닛 정보 패널 (이름·스탯·발동 시너지). 칸에서 텍스트를 없애고 정보는 여기로.
+var _unit_info_panel: PanelContainer
+var _unit_info_rich: RichTextLabel
+# 적 셀 유닛 룩업 (호버 정보용): Vector2i(row, col) -> EnemyUnitData
+var _enemy_cell_units: Dictionary = {}
 
 # 팀별 SpriteFrames 캐시 (폴더에서 1회 빌드 후 재사용)
 var _sprite_frames_cache: Dictionary = {}  ## String dir -> SpriteFrames
@@ -369,6 +388,15 @@ func _build_prep_ui() -> Control:
 	enemy_section.add_child(_build_enemy_grid())
 	battle_hbox.add_child(enemy_section)
 
+	# 발동 시너지 요약 — 배치가 바뀔 때마다 _refresh_player_grid에서 갱신.
+	_synergy_label = Label.new()
+	_synergy_label.name = "SynergyDisplay"
+	_synergy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_synergy_label.add_theme_font_size_override(&"font_size", 15)
+	_synergy_label.add_theme_color_override(&"font_color", SYNERGY_CELL_TINT)
+	main_vbox.add_child(_synergy_label)
+
 	# 하단: 보관함 — 2×5 고정 그리드(10칸). 미배치 유닛만 채움.
 	var roster_label := Label.new()
 	roster_label.text = "보관함"
@@ -395,7 +423,12 @@ func _build_prep_ui() -> Control:
 	start_btn.pressed.connect(_on_start_battle_pressed)
 	main_vbox.add_child(start_btn)
 
+	# 마우스 호버 유닛 정보 패널 (root 최상단에 떠다님, 평소 숨김).
+	_build_unit_info_panel(root)
+
 	_refresh_sidebar()
+	# 시너지 라벨이 이제 존재 → 셀 강조 + 요약 라벨을 처음으로 채운다.
+	_refresh_player_grid()
 
 	return root
 
@@ -412,17 +445,11 @@ func _build_enemy_grid() -> GridContainer:
 	for slot: EncounterSlot in _encounter_template.slots:
 		slot_lookup[Vector2i(slot.row, slot.col)] = slot
 
+	_enemy_cell_units.clear()
 	for row in BoardState.ROWS:
 		for col in BoardState.COLS:
 			var cell := Panel.new()
 			cell.custom_minimum_size = CELL_SIZE
-
-			var label := Label.new()
-			label.set_anchors_preset(Control.PRESET_FULL_RECT)
-			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			label.add_theme_font_size_override(&"font_size", 9)
-			label.clip_text = true
 
 			var key := Vector2i(row, col)
 			if slot_lookup.has(key):
@@ -431,11 +458,14 @@ func _build_enemy_grid() -> GridContainer:
 				if unit == null and not slot.variation_pool.is_empty():
 					unit = slot.variation_pool[0]
 				if unit != null:
-					label.text = unit.display_name
+					# 텍스트 없이 슬라임 이미지만. 정보는 호버 패널로.
+					cell.add_child(_make_cell_portrait(_get_enemy_portrait_tex()))
 					cell.modulate = Color(1.0, 0.75, 0.75)
+					_enemy_cell_units[key] = unit
+					cell.mouse_entered.connect(_show_unit_info.bind(row, col, true))
+					cell.mouse_exited.connect(_hide_unit_info)
 			else:
 				cell.modulate = Color(1.0, 1.0, 1.0, 0.4)
-			cell.add_child(label)
 			grid.add_child(cell)
 	return grid
 
@@ -455,7 +485,6 @@ func _build_player_grid() -> GridContainer:
 			var btn := Button.new()
 			btn.custom_minimum_size = CELL_SIZE
 			btn.clip_text = true
-			btn.add_theme_font_size_override(&"font_size", 9)
 			# 배치는 전적으로 드래그앤드롭. (클릭-선택 방식 폐기)
 			#   셀→빈 셀: 이동 / 셀→보관함: 회수 / 보관함→빈 셀: 배치
 			btn.set_drag_forwarding(
@@ -463,6 +492,16 @@ func _build_player_grid() -> GridContainer:
 				_cell_drag_can_drop.bind(row, col),
 				_cell_drag_drop.bind(row, col),
 			)
+			# 텍스트 없이 유닛 포트레이트(이미지)만. 이름·스탯은 호버 패널로.
+			var portrait := _make_cell_portrait(_get_portrait_tex())
+			portrait.name = "Portrait"
+			portrait.visible = false
+			btn.add_child(portrait)
+
+			# 마우스 호버 → 이 칸 유닛 정보 패널 표시.
+			btn.mouse_entered.connect(_show_unit_info.bind(row, col, false))
+			btn.mouse_exited.connect(_hide_unit_info)
+
 			_player_cell_buttons[Vector2i(row, col)] = btn
 			grid.add_child(btn)
 
@@ -471,17 +510,230 @@ func _build_player_grid() -> GridContainer:
 
 
 func _refresh_player_grid() -> void:
+	var syn: Dictionary = _compute_synergy_state()
+	var per_cell: Dictionary = syn["per_cell"]
 	for row in BoardState.ROWS:
 		for col in BoardState.COLS:
-			var btn: Button = _player_cell_buttons[Vector2i(row, col)]
-			var cell_val: Resource = GameState.board.get_unit(row, col)
-			var owned: OwnedUnit = cell_val as OwnedUnit
+			var pos := Vector2i(row, col)
+			var btn: Button = _player_cell_buttons[pos]
+			var portrait: TextureRect = btn.get_node("Portrait")
+			var owned: OwnedUnit = GameState.board.get_unit(row, col) as OwnedUnit
 			if owned == null or owned.source == null:
-				btn.text = ""
+				portrait.visible = false
 				btn.modulate = Color(1.0, 1.0, 1.0, 0.6)
+				continue
+			# 배치된 칸: 포트레이트 표시. 시너지 발동 칸은 금색 강조.
+			portrait.visible = true
+			if per_cell.get(pos, []).is_empty():
+				btn.modulate = CELL_PLACED_TINT
 			else:
-				btn.text = owned.source.display_name
-				btn.modulate = Color(0.75, 0.9, 1.0)
+				btn.modulate = SYNERGY_CELL_TINT
+	_update_synergy_display(syn["counts"])
+
+
+## CELL_SIZE에 맞춰 텍스처를 비율 유지로 그리는 TextureRect (입력 통과).
+func _make_cell_portrait(tex: Texture2D) -> TextureRect:
+	var portrait := TextureRect.new()
+	portrait.set_anchors_preset(Control.PRESET_FULL_RECT)
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait.texture = tex
+	return portrait
+
+
+func _get_portrait_tex() -> Texture2D:
+	if _portrait_tex == null:
+		_portrait_tex = load(UNIT_PORTRAIT_PATH) as Texture2D
+	return _portrait_tex
+
+
+func _get_enemy_portrait_tex() -> Texture2D:
+	if _enemy_portrait_tex == null:
+		_enemy_portrait_tex = load(ENEMY_PORTRAIT_PATH) as Texture2D
+	return _enemy_portrait_tex
+
+
+## 현재 보드 배치의 시너지 상태 계산.
+## 반환: {per_cell: {Vector2i(row,col): Array[StringName] rule_ids},
+##        counts: {StringName rule_id: int 발동 유닛 수}}
+func _compute_synergy_state() -> Dictionary:
+	var per_cell: Dictionary = {}
+	var counts: Dictionary = {}
+	if GameState.board == null or GameState.run == null:
+		return {"per_cell": per_cell, "counts": counts}
+	# SynergyEngine 결과는 Vector2i(col, row) 키 → (row, col)로 변환해 저장.
+	var computed: Dictionary = SynergyEngine.compute(GameState.board, GameState.run.active_rules)
+	for key in computed:
+		var cs: ComputedStats = computed[key]
+		var ids: Array = cs.applied_synergies
+		if ids.is_empty():
+			continue
+		per_cell[Vector2i(key.y, key.x)] = ids
+		for sid in ids:
+			counts[sid] = int(counts.get(sid, 0)) + 1
+	return {"per_cell": per_cell, "counts": counts}
+
+
+## rule id → SynergyRule (active_rules에서 1회 캐시).
+func _synergy_rule(id: StringName) -> SynergyRule:
+	if _synergy_rule_lookup.is_empty() and GameState.run != null:
+		for rule in GameState.run.active_rules:
+			if rule != null:
+				_synergy_rule_lookup[rule.id] = rule
+	return _synergy_rule_lookup.get(id)
+
+
+## 퍼센트 보너스 → "+10%" / "-5%" 부호 포함 문자열.
+static func _fmt_pct(v: float) -> String:
+	return "%+d%%" % int(round(v * 100.0))
+
+
+## 룰의 0이 아닌 보너스를 간결 문자열로. 예: "공격+10% 체력+12%".
+func _synergy_effect_text(rule: SynergyRule) -> String:
+	if rule == null:
+		return ""
+	var parts: Array[String] = []
+	if rule.attack_bonus_pct != 0.0: parts.append("공격" + _fmt_pct(rule.attack_bonus_pct))
+	if rule.hp_bonus_pct != 0.0: parts.append("체력" + _fmt_pct(rule.hp_bonus_pct))
+	if rule.attack_speed_bonus_pct != 0.0: parts.append("공속" + _fmt_pct(rule.attack_speed_bonus_pct))
+	if rule.move_speed_bonus_pct != 0.0: parts.append("이속" + _fmt_pct(rule.move_speed_bonus_pct))
+	if rule.range_bonus_pct != 0.0: parts.append("사거리" + _fmt_pct(rule.range_bonus_pct))
+	if rule.defense_bonus != 0.0: parts.append("방어%+d%%p" % int(round(rule.defense_bonus * 100.0)))
+	if rule.crit_chance_bonus != 0.0: parts.append("치명" + _fmt_pct(rule.crit_chance_bonus))
+	if rule.lifesteal_bonus != 0.0: parts.append("흡혈" + _fmt_pct(rule.lifesteal_bonus))
+	if rule.armor_penetration_bonus != 0.0: parts.append("관통" + _fmt_pct(rule.armor_penetration_bonus))
+	if rule.accuracy_bonus != 0.0: parts.append("정확" + _fmt_pct(rule.accuracy_bonus))
+	if rule.hp_regen_bonus != 0.0: parts.append("재생%+d" % int(round(rule.hp_regen_bonus)))
+	return " ".join(parts)
+
+
+## 발동 시너지 요약 라벨 갱신. counts = {rule_id: 발동 유닛 수}.
+## 이름 + 효과 + 발동 유닛 수를 모두 표시.
+func _update_synergy_display(counts: Dictionary) -> void:
+	if _synergy_label == null:
+		return
+	if counts.is_empty():
+		_synergy_label.text = "발동 시너지 없음 — 같은 진영·병종을 인접 배치하면 발동합니다"
+		return
+	var parts: Array[String] = []
+	for sid in counts:
+		var rule: SynergyRule = _synergy_rule(sid)
+		var nm: String = rule.display_name if rule != null else String(sid)
+		var eff: String = _synergy_effect_text(rule)
+		if eff != "":
+			parts.append("%s (%s) ×%d" % [nm, eff, int(counts[sid])])
+		else:
+			parts.append("%s ×%d" % [nm, int(counts[sid])])
+	_synergy_label.text = "⚔ 발동 시너지    " + "        ".join(parts)
+
+
+# ---------- 마우스 호버 유닛 정보 패널 ----------
+
+func _build_unit_info_panel(parent: Control) -> void:
+	_unit_info_panel = PanelContainer.new()
+	_unit_info_panel.name = "UnitInfoPanel"
+	_unit_info_panel.visible = false
+	_unit_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_unit_info_panel.z_index = 100  # 다른 UI 위로
+
+	_unit_info_rich = RichTextLabel.new()
+	_unit_info_rich.bbcode_enabled = true
+	_unit_info_rich.fit_content = true
+	_unit_info_rich.scroll_active = false
+	_unit_info_rich.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_unit_info_rich.custom_minimum_size = Vector2(240, 0)
+	_unit_info_rich.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_unit_info_panel.add_child(_unit_info_rich)
+
+	parent.add_child(_unit_info_panel)
+
+
+## 배치 칸(플레이어/적) 호버 시 호출.
+func _show_unit_info(row: int, col: int, is_enemy: bool) -> void:
+	if is_enemy:
+		_show_info_text(_enemy_info_text(Vector2i(row, col)))
+	else:
+		var owned: OwnedUnit = GameState.board.get_unit(row, col) as OwnedUnit
+		_show_info_text(_owned_info_text(owned, _computed_for_cell(row, col)))
+
+
+## 보관함 칩 호버 시 호출 (미배치 → 시너지 없음, 기본 스탯).
+func _show_roster_info(owned: OwnedUnit) -> void:
+	_show_info_text(_owned_info_text(owned, null))
+
+
+func _hide_unit_info() -> void:
+	if _unit_info_panel != null:
+		_unit_info_panel.visible = false
+
+
+## 패널에 텍스트를 채우고 마우스 근처에 띄운다. 빈 텍스트면 숨김.
+func _show_info_text(text: String) -> void:
+	if _unit_info_panel == null:
+		return
+	if text == "":
+		_hide_unit_info()
+		return
+	_unit_info_rich.text = text
+	# 마우스 오른쪽에, 화면 밖이면 왼쪽으로.
+	var mouse: Vector2 = get_global_mouse_position()
+	var panel_w: float = 252.0
+	var vp_w: float = get_viewport_rect().size.x
+	var px: float = mouse.x + 16.0
+	if px + panel_w > vp_w:
+		px = mouse.x - panel_w - 16.0
+	_unit_info_panel.global_position = Vector2(maxf(px, 4.0), mouse.y + 8.0)
+	_unit_info_panel.visible = true
+
+
+## 현재 보드 셀(row,col)의 ComputedStats (시너지 적용). 없으면 null.
+func _computed_for_cell(row: int, col: int) -> ComputedStats:
+	if GameState.board == null or GameState.run == null:
+		return null
+	var computed: Dictionary = SynergyEngine.compute(GameState.board, GameState.run.active_rules)
+	return computed.get(Vector2i(col, row))
+
+
+## 플레이어 OwnedUnit 정보 BBCode. cs(ComputedStats)가 있으면 시너지 반영 스탯 + 발동 시너지 표시.
+func _owned_info_text(owned: OwnedUnit, cs: ComputedStats) -> String:
+	if owned == null or owned.source == null:
+		return ""
+	var u: UnitData = owned.source
+	var hp: float = cs.max_hp if cs != null else u.max_hp
+	var atk: float = cs.attack if cs != null else u.attack
+	var aspd: float = cs.attack_speed if cs != null else u.attack_speed
+	var rng: float = cs.attack_range if cs != null else u.attack_range
+	var dfn: float = cs.defense if cs != null else u.defense
+	var s: String = "[b]%s[/b]" % u.display_name
+	match owned.status:
+		OwnedUnit.Status.INJURED:
+			s += "  [color=#d8a24a][부상][/color]"
+		OwnedUnit.Status.DEAD:
+			s += "  [color=#c83a30][사망][/color]"
+	s += "\nHP %d   공격 %d   공속 %.2f\n사거리 %d   방어 %d%%" % [
+		int(round(hp)), int(round(atk)), aspd, int(round(rng)), int(round(dfn * 100.0))
+	]
+	if cs != null and not cs.applied_synergies.is_empty():
+		s += "\n[color=#e0c060]― 발동 시너지 ―[/color]"
+		for sid in cs.applied_synergies:
+			var rule: SynergyRule = _synergy_rule(sid)
+			if rule == null:
+				continue
+			s += "\n• %s  [color=#a9c0e0]%s[/color]" % [rule.display_name, _synergy_effect_text(rule)]
+	return s
+
+
+## 적 EnemyUnitData 정보 BBCode (기본 스탯).
+func _enemy_info_text(pos: Vector2i) -> String:
+	var eu: EnemyUnitData = _enemy_cell_units.get(pos)
+	if eu == null:
+		return ""
+	return "[b]%s[/b]\nHP %d   공격 %d   공속 %.2f   사거리 %d" % [
+		eu.display_name, int(round(eu.max_hp)), int(round(eu.attack)),
+		eu.attack_speed, int(round(eu.attack_range))
+	]
 
 
 ## 보관함(2×5 그리드) 갱신. 배치된 유닛은 보드에 있으므로 칸을 차지하지 않는다.
@@ -489,6 +741,8 @@ func _refresh_player_grid() -> void:
 func _refresh_sidebar() -> void:
 	if _roster_box == null:
 		return
+	# 칩이 재생성되며 호버 대상이 사라지므로 정보 패널은 닫는다 (잔상 방지).
+	_hide_unit_info()
 	for child in _roster_box.get_children():
 		child.queue_free()
 	_sidebar_buttons.clear()
@@ -512,21 +766,35 @@ func _refresh_sidebar() -> void:
 			_roster_box.add_child(_make_empty_slot())
 
 
-## 미배치 유닛 칩 — 전투가능하면 드래그 소스, 부상/사망이면 비활성.
+## 미배치 유닛 칩 — 이미지만. 전투가능하면 드래그 소스, 부상/사망이면 배지+비활성.
+## 이름·스탯은 마우스 호버 패널로.
 func _make_roster_chip(owned: OwnedUnit) -> Button:
 	var chip := Button.new()
 	chip.custom_minimum_size = ROSTER_SLOT_SIZE
-	chip.clip_text = true
-	chip.add_theme_font_size_override(&"font_size", 11)
 
+	# 유닛 포트레이트.
+	var portrait := _make_cell_portrait(_get_portrait_tex())
+	chip.add_child(portrait)
+
+	# 상태 배지 — 부상/사망만 좌상단에 작게 (한눈에 식별 필요).
 	var badge: String = ""
 	match owned.status:
 		OwnedUnit.Status.INJURED:
 			badge = "⚠"
 		OwnedUnit.Status.DEAD:
 			badge = "☠"
-	var name_str: String = owned.source.display_name if owned.source else "?"
-	chip.text = "%s %s" % [badge, name_str] if badge != "" else name_str
+	if badge != "":
+		var badge_lbl := Label.new()
+		badge_lbl.text = badge
+		badge_lbl.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		badge_lbl.add_theme_font_size_override(&"font_size", 16)
+		badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(badge_lbl)
+		portrait.modulate = Color(0.6, 0.6, 0.6, 0.7)  # 출전 불가 → 흐리게
+
+	# 마우스 호버 → 보관함 유닛 정보 (시너지 없음, 기본 스탯).
+	chip.mouse_entered.connect(_show_roster_info.bind(owned))
+	chip.mouse_exited.connect(_hide_unit_info)
 
 	if owned.is_deployable():
 		chip.set_drag_forwarding(
@@ -658,6 +926,13 @@ func _build_result_ui() -> Control:
 	detail.name = "Detail"
 	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(detail)
+
+	# 통계 패널 — MVP / 총 데미지 / 처치 / 생존 + 유닛별 상세.
+	var stats := Label.new()
+	stats.name = "Stats"
+	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stats.add_theme_font_size_override(&"font_size", 16)
+	vbox.add_child(stats)
 
 	var continue_btn := Button.new()
 	continue_btn.name = "ContinueButton"
@@ -938,6 +1213,7 @@ func _enter_result_screen() -> void:
 func _populate_result_screen() -> void:
 	var outcome_label: Label = _result_layer.get_node("ResultStack/Outcome")
 	var detail_label: Label = _result_layer.get_node("ResultStack/Detail")
+	var stats_label: Label = _result_layer.get_node("ResultStack/Stats")
 	var continue_btn: Button = _result_layer.get_node("ResultStack/ContinueButton")
 
 	match _current_result.outcome:
@@ -961,6 +1237,31 @@ func _populate_result_screen() -> void:
 			outcome_label.text = "패배"
 			detail_label.text = "런 종료\n전투 시간 %.1fs" % _current_result.duration_sec
 			continue_btn.text = "메인 메뉴로"
+
+	stats_label.text = _format_battle_stats(_current_result)
+
+
+## 전투 통계 텍스트 — MVP / 총 데미지 / 처치 / 생존 + 상위 유닛 데미지.
+func _format_battle_stats(r: BattleResult) -> String:
+	var lines: Array[String] = []
+	if r.mvp_name != "":
+		lines.append("MVP — %s (%d 데미지)" % [r.mvp_name, int(round(r.mvp_damage))])
+	lines.append("팀 총 데미지 %d   ·   처치 %d   ·   생존 %d/%d" % [
+		int(round(r.total_damage_dealt)),
+		r.enemy_kill_count,
+		r.survivor_count,
+		r.deployed_count,
+	])
+	# 상위 3 유닛 데미지 한 줄.
+	var top: Array[String] = []
+	for i in mini(3, r.unit_stats.size()):
+		var s: Dictionary = r.unit_stats[i]
+		if float(s["damage"]) <= 0.0:
+			continue
+		top.append("%s %d" % [s["name"], int(round(float(s["damage"])))])
+	if not top.is_empty():
+		lines.append("  ·  ".join(top))
+	return "\n".join(lines)
 
 
 func _on_continue_pressed() -> void:

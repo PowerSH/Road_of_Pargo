@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_unit")
 id = &"arden_crossbowman_mercenary"
-display_name = "아르덴 용병 석궁병"
+display_name = "팜"
 max_hp = 140.0
 attack = 21.0
 attack_speed = 0.65

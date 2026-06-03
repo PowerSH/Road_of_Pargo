@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_unit")
 id = &"nelm_crossbowman_adventurer"
-display_name = "넬름 모험가 석궁병"
+display_name = "운타라"
 max_hp = 120.0
 attack = 18.0
 attack_speed = 0.8

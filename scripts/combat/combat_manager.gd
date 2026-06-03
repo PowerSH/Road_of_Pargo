@@ -307,4 +307,39 @@ func _finish(outcome: BattleResult.Outcome) -> void:
 		else:
 			owned.mark_injured(injury_threshold)
 			result.newly_injured.append(owned)
+	_populate_battle_stats(result)
 	battle_ended.emit(result)
+
+
+## 결과 화면용 통계 집계 — 플레이어 팀의 데미지/처치/MVP/생존 수.
+func _populate_battle_stats(result: BattleResult) -> void:
+	var total_dmg: float = 0.0
+	var total_kills: int = 0
+	var mvp: CombatUnit = null
+	for cu in _player_units:
+		total_dmg += cu.damage_dealt
+		total_kills += cu.kills
+		if mvp == null or cu.damage_dealt > mvp.damage_dealt:
+			mvp = cu
+		result.unit_stats.append({
+			"name": _unit_display_name(cu),
+			"damage": cu.damage_dealt,
+			"kills": cu.kills,
+			"alive": cu.is_alive(),
+		})
+	result.unit_stats.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a["damage"] > b["damage"])
+	result.total_damage_dealt = total_dmg
+	result.enemy_kill_count = total_kills
+	result.deployed_count = _player_units.size()
+	result.survivor_count = _count_alive(_player_units)
+	if mvp != null and mvp.damage_dealt > 0.0:
+		result.mvp_name = _unit_display_name(mvp)
+		result.mvp_damage = mvp.damage_dealt
+
+
+## CombatUnit → 표시 이름. owned.source.display_name 우선, 없으면 "?".
+func _unit_display_name(cu: CombatUnit) -> String:
+	if cu.owned != null and cu.owned.source != null:
+		return cu.owned.source.display_name
+	return "?"

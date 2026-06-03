@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_syn")
 id = &"syn_nelm_spearman_t4"
-display_name = "넬름+창병 T4"
+display_name = "넬름 장창 방진(4)"
 description = "넬름 창병이 인접했을 때 발동"
 applies_to_type = &"nation_nelm"
 requires_adjacent_type = &"class_spearman"

@@ -29,6 +29,20 @@ var duration_sec: float = 0.0
 var enemy_power_total: float = 0.0
 var encounter_id: StringName = &""
 
+## ── 전투 통계 (RESULT_SCREEN 풍부화용, CombatManager._finish가 채움) ──
+## 플레이어 팀이 가한 총 데미지.
+var total_damage_dealt: float = 0.0
+## MVP = 가장 많은 데미지를 가한 아군 유닛. 이름 + 데미지. (없으면 빈 문자열)
+var mvp_name: String = ""
+var mvp_damage: float = 0.0
+## 출전한 아군 수 / 그중 생존 수.
+var deployed_count: int = 0
+var survivor_count: int = 0
+## 아군이 처치한 적 수 (막타 기준 합).
+var enemy_kill_count: int = 0
+## 유닛별 상세 — [{name:String, damage:float, kills:int, alive:bool}], 데미지 내림차순.
+var unit_stats: Array = []
+
 
 static func make_win(gold: int, survivors: Dictionary, injured: Array[OwnedUnit], power: float, dur: float, enc_id: StringName) -> BattleResult:
 	var r := BattleResult.new()
